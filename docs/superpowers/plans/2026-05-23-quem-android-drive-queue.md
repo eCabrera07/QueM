@@ -36,7 +36,9 @@
 Use stable releases where available and avoid alpha/beta libraries unless required by compatibility. Metadata checked on 2026-05-23:
 
 - Android Gradle Plugin: `9.2.1`
-- Kotlin Android plugin: `2.3.21`
+- AGP built-in Kotlin support: `2.3.21`
+- Kotlin Compose plugin: `2.3.21`
+- Kotlin serialization plugin: `2.3.21`
 - KSP Gradle plugin: `2.3.8`
 - Compose BOM: `2026.05.01`
 - Room: `2.8.4`
@@ -94,7 +96,6 @@ Create `build.gradle.kts`:
 ```kotlin
 plugins {
     id("com.android.application") version "9.2.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.3.21" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.21" apply false
     id("org.jetbrains.kotlin.plugin.serialization") version "2.3.21" apply false
     id("com.google.devtools.ksp") version "2.3.8" apply false
@@ -119,7 +120,6 @@ Create `app/build.gradle.kts`:
 ```kotlin
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
@@ -140,6 +140,15 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/INDEX.LIST",
+                "META-INF/DEPENDENCIES"
+            )
+        }
     }
 }
 
