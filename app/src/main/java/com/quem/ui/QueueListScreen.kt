@@ -3,6 +3,7 @@ package com.quem.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.quem.core.model.QueueStatus
 
@@ -63,7 +65,7 @@ fun QueueListScreen(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+            contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(items, key = { it.id }) { item ->
@@ -97,27 +99,29 @@ private fun QueueListItemCard(
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 item.priorityLabel?.let { label ->
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    QueueItemMetadataText(label)
                 }
                 item.dueDateLabel?.let { label ->
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    QueueItemMetadataText(label)
                 }
-                Text(
-                    text = item.attachmentSummary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                QueueItemMetadataText(item.attachmentSummary)
             }
         }
     }
+}
+
+@Composable
+private fun QueueItemMetadataText(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth(),
+        style = MaterialTheme.typography.bodyMedium,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
 }

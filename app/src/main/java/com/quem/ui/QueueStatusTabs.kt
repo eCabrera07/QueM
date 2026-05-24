@@ -1,9 +1,11 @@
 package com.quem.ui
 
-import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.quem.core.model.QueueStatus
 
 private val StatusTabs = listOf(
@@ -21,12 +23,19 @@ fun QueueStatusTabs(
     val selectedTabIndex = StatusTabs.indexOfFirst { (status, _) -> status == selectedStatus }
         .coerceAtLeast(0)
 
-    PrimaryScrollableTabRow(selectedTabIndex = selectedTabIndex) {
+    PrimaryTabRow(selectedTabIndex = selectedTabIndex) {
         StatusTabs.forEach { (status, label) ->
             Tab(
                 selected = status == selectedStatus,
                 onClick = { onStatusSelected(status) },
-                text = { Text(label) }
+                text = {
+                    Text(
+                        text = label,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                }
             )
         }
     }
