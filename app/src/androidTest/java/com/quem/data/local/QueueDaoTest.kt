@@ -34,11 +34,88 @@ class QueueDaoTest {
     @Test
     fun statusQueryExcludesDismissedFromActiveWhenCallerRequestsQueued() = runBlocking {
         val now = Instant.parse("2026-05-23T12:00:00Z")
-        dao.upsertItem(QueueItemEntity(id = "queued", driveId = null, title = "Queued", description = null, status = "QUEUED", priority = null, dueDate = null, tags = emptyList(), createdAt = now, updatedAt = now, completedAt = null, dismissedAt = null, syncState = "PENDING_SYNC"))
-        dao.upsertItem(QueueItemEntity(id = "dismissed", driveId = null, title = "Dismissed", description = null, status = "DISMISSED", priority = null, dueDate = null, tags = emptyList(), createdAt = now, updatedAt = now, completedAt = null, dismissedAt = now, syncState = "PENDING_SYNC"))
+        dao.upsertItem(queueItem(id = "queued", title = "Queued", status = "QUEUED", now = now))
+        dao.upsertItem(queueItem(id = "dismissed", title = "Dismissed", status = "DISMISSED", dismissedAt = now, now = now))
 
         val queued = dao.observeItemsByStatus("QUEUED").first()
 
         assertEquals(listOf("queued"), queued.map { it.id })
     }
+
+    @Test
+    fun tagsRoundTripThroughRoomWithoutDelimiterLoss() = runBlocking {
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val tags = listOf("alpha\u001Fbeta", """{"kind":"json"}""", "", " spaced ")
+        dao.upsertItem(queueItem(id = "tagged", title = "Tagged", tags = tags, now = now))
+
+        val item = dao.observeItem("tagged").first()
+
+        assertEquals(tags, item?.tags)
+    }
+
+    @Test
+    fun deletingQueueItemCascadesToAttachmentsAndHistory() = runBlocking {
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        dao.upsertItem(queueItem(id = "parent", title = "Parent", now = now))
+        dao.upsertAttachment(attachment(id = "attachment", queueItemId = "parent", now = now))
+        dao.upsertHistoryEntry(historyEntry(id = "history", queueItemId = "parent", now = now))
+
+        db.openHelper.writableDatabase.execSQL("DELETE FROM queue_items WHERE id = 'parent'")
+
+        assertEquals(emptyList<AttachmentEntity>(), dao.observeAttachments("parent").first())
+        assertEquals(emptyList<HistoryEntryEntity>(), dao.observeHistory("parent").first())
+    }
+
+    private fun queueItem(
+        id: String,
+        title: String,
+        status: String = "QUEUED",
+        tags: List<String> = emptyList(),
+        dismissedAt: Instant? = null,
+        now: Instant
+    ) = QueueItemEntity(
+        id = id,
+        driveId = null,
+        title = title,
+        description = null,
+        status = status,
+        priority = null,
+        dueDate = null,
+        tags = tags,
+        createdAt = now,
+        updatedAt = now,
+        completedAt = null,
+        dismissedAt = dismissedAt,
+        syncState = "PENDING_SYNC"
+    )
+
+    private fun attachment(
+        id: String,
+        queueItemId: String,
+        now: Instant
+    ) = AttachmentEntity(
+        id = id,
+        queueItemId = queueItemId,
+        type = "NOTE",
+        displayName = "Attachment",
+        textContent = "Body",
+        url = null,
+        driveFileId = null,
+        mimeType = "text/plain",
+        createdAt = now,
+        updatedAt = now,
+        syncState = "PENDING_SYNC"
+    )
+
+    private fun historyEntry(
+        id: String,
+        queueItemId: String,
+        now: Instant
+    ) = HistoryEntryEntity(
+        id = id,
+        queueItemId = queueItemId,
+        message = "Created",
+        kind = "CREATE",
+        createdAt = now
+    )
 }

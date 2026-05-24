@@ -22,6 +22,10 @@ android {
         compose = true
     }
 
+    sourceSets {
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
+    }
+
     packaging {
         resources {
             excludes += setOf(
@@ -30,6 +34,10 @@ android {
             )
         }
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
