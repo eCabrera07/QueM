@@ -57,6 +57,10 @@ Use stable releases where available and avoid alpha/beta libraries unless requir
 - Create: `settings.gradle.kts`
 - Create: `build.gradle.kts`
 - Create: `gradle.properties`
+- Create: `gradlew`
+- Create: `gradlew.bat`
+- Create: `gradle/wrapper/gradle-wrapper.jar`
+- Create: `gradle/wrapper/gradle-wrapper.properties`
 - Create: `app/build.gradle.kts`
 - Create: `app/src/main/AndroidManifest.xml`
 - Create: `app/src/main/res/values/styles.xml`
@@ -113,7 +117,27 @@ kotlin.code.style=official
 org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
 ```
 
-- [ ] **Step 4: Create app module build file**
+- [ ] **Step 4: Create Gradle wrapper**
+
+Create a pinned Gradle wrapper for Gradle 9.4.1, compatible with Android Gradle Plugin 9.2.1:
+
+```powershell
+gradle wrapper --gradle-version 9.4.1 --distribution-type bin --no-daemon
+```
+
+Expected wrapper files:
+- `gradlew`
+- `gradlew.bat`
+- `gradle/wrapper/gradle-wrapper.jar`
+- `gradle/wrapper/gradle-wrapper.properties`
+
+Verify `gradle/wrapper/gradle-wrapper.properties` contains:
+
+```properties
+distributionUrl=https\://services.gradle.org/distributions/gradle-9.4.1-bin.zip
+```
+
+- [ ] **Step 5: Create app module build file**
 
 Create `app/build.gradle.kts`:
 
@@ -190,7 +214,7 @@ dependencies {
 }
 ```
 
-- [ ] **Step 5: Create manifest and Compose entry point**
+- [ ] **Step 6: Create manifest and Compose entry point**
 
 Create `app/src/main/AndroidManifest.xml`:
 
@@ -289,18 +313,18 @@ fun QueMTheme(content: @Composable () -> Unit) {
 }
 ```
 
-- [ ] **Step 6: Verify scaffold builds**
+- [ ] **Step 7: Verify scaffold builds**
 
-Run: `.\gradlew.bat :app:assembleDebug`
+Run: `.\gradlew.bat :app:assembleDebug --no-daemon`
 
 Expected: `BUILD SUCCESSFUL`.
 
-- [ ] **Step 7: Commit scaffold**
+- [ ] **Step 8: Commit scaffold**
 
 Run:
 
 ```powershell
-git add settings.gradle.kts build.gradle.kts gradle.properties app
+git add settings.gradle.kts build.gradle.kts gradle.properties gradlew gradlew.bat gradle/wrapper app docs/superpowers/plans/2026-05-23-quem-android-drive-queue.md
 git commit -m "chore: scaffold Android app"
 ```
 
