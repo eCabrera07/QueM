@@ -1,16 +1,17 @@
 package com.quem.ui
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.CreationExtras
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.data.repository.QueueRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -29,15 +30,17 @@ data class QueueItemDetailUi(
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QueueViewModel(
-    private val repository: QueueRepository
+    private val repository: QueueRepository,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
-    private val _selectedStatus = MutableStateFlow(QueueStatus.QUEUED)
-    val selectedStatus: StateFlow<QueueStatus> = _selectedStatus.asStateFlow()
+    val selectedStatus: StateFlow<QueueStatus> =
+        savedStateHandle.getStateFlow(KEY_SELECTED_STATUS, QueueStatus.QUEUED)
 
-    private val _isCreatingItem = MutableStateFlow(false)
-    val isCreatingItem: StateFlow<Boolean> = _isCreatingItem.asStateFlow()
+    val isCreatingItem: StateFlow<Boolean> =
+        savedStateHandle.getStateFlow(KEY_IS_CREATING_ITEM, false)
 
-    private val selectedItemId = MutableStateFlow<String?>(null)
+    private val selectedItemId: StateFlow<String?> =
+        savedStateHandle.getStateFlow(KEY_SELECTED_ITEM_ID, null)
 
     val items: StateFlow<List<QueueListItemUi>> =
         selectedStatus
@@ -82,27 +85,27 @@ class QueueViewModel(
             )
 
     fun selectStatus(status: QueueStatus) {
-        _selectedStatus.value = status
+        savedStateHandle[KEY_SELECTED_STATUS] = status
     }
 
     fun selectItem(id: String) {
-        selectedItemId.value = id
+        savedStateHandle[KEY_SELECTED_ITEM_ID] = id
     }
 
     fun startCreate() {
-        _isCreatingItem.value = true
+        savedStateHandle[KEY_IS_CREATING_ITEM] = true
     }
 
     fun cancelCreate() {
-        _isCreatingItem.value = false
+        savedStateHandle[KEY_IS_CREATING_ITEM] = false
     }
 
     fun createItem(title: String, description: String?) {
         viewModelScope.launch {
             val created = repository.createItem(title = title, description = description)
-            _selectedStatus.value = QueueStatus.QUEUED
-            selectedItemId.value = created.id
-            _isCreatingItem.value = false
+            savedStateHandle[KEY_SELECTED_STATUS] = QueueStatus.QUEUED
+            savedStateHandle[KEY_SELECTED_ITEM_ID] = created.id
+            savedStateHandle[KEY_IS_CREATING_ITEM] = false
         }
     }
 
@@ -115,14 +118,14 @@ class QueueViewModel(
     }
 
     fun backToList() {
-        selectedItemId.value = null
+        savedStateHandle[KEY_SELECTED_ITEM_ID] = null
     }
 
     private fun moveSelectedItemTo(status: QueueStatus) {
         val id = selectedItemId.value ?: return
         viewModelScope.launch {
             repository.changeStatus(id = id, status = status)
-            _selectedStatus.value = status
+            savedStateHandle[KEY_SELECTED_STATUS] = status
             backToList()
         }
     }
@@ -137,7 +140,22 @@ class QueueViewModel(
                     }
                     throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
                 }
+
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
+                    if (modelClass.isAssignableFrom(QueueViewModel::class.java)) {
+                        return QueueViewModel(
+                            repository = repository,
+                            savedStateHandle = extras.createSavedStateHandle()
+                        ) as T
+                    }
+                    throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+                }
             }
+
+        private const val KEY_SELECTED_STATUS = "selectedStatus"
+        private const val KEY_IS_CREATING_ITEM = "isCreatingItem"
+        private const val KEY_SELECTED_ITEM_ID = "selectedItemId"
     }
 }
 

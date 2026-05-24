@@ -48,8 +48,9 @@ class QueueListScreenTest {
     @Test
     fun selectedStatusSurvivesSavedStateRestore() {
         val restorationTester = StateRestorationTester(compose)
+        val repository = FakeQueueRepository.withSampleItem()
         restorationTester.setContent {
-            QueMApp(queueRepository = FakeQueueRepository.withSampleItem())
+            QueMApp(queueRepository = repository)
         }
 
         compose.onNodeWithText("Dismissed").performClick()
@@ -60,8 +61,9 @@ class QueueListScreenTest {
 
     @Test
     fun dismissedSampleItemMovesOutOfQueuedList() {
+        val repository = FakeQueueRepository.withSampleItem()
         compose.setContent {
-            QueMApp(queueRepository = FakeQueueRepository.withSampleItem())
+            QueMApp(queueRepository = repository)
         }
 
         compose.onNodeWithText("Read contract").performClick()

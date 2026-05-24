@@ -1,5 +1,6 @@
 package com.quem.ui
 
+import androidx.lifecycle.SavedStateHandle
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
 import com.quem.core.model.QueueItem
@@ -105,6 +106,27 @@ class QueueViewModelTest {
 
         assertEquals(listOf("Notes", "Spec"), viewModel.selectedItem.value?.attachments)
         assertEquals(emptyList<String>(), viewModel.selectedItem.value?.history)
+    }
+
+    @Test
+    fun navigationStateRestoresFromSavedStateHandle() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem("Read contract", "Legal notes")
+        val savedStateHandle = SavedStateHandle(
+            mapOf(
+                "selectedStatus" to QueueStatus.DISMISSED,
+                "isCreatingItem" to true,
+                "selectedItemId" to "item-1"
+            )
+        )
+        val viewModel = QueueViewModel(repository, savedStateHandle)
+        collectSelectedItem(viewModel)
+
+        runCurrent()
+
+        assertEquals(QueueStatus.DISMISSED, viewModel.selectedStatus.value)
+        assertEquals(true, viewModel.isCreatingItem.value)
+        assertEquals("item-1", viewModel.selectedItem.value?.id)
     }
 
     private fun TestScope.collectSelectedItem(viewModel: QueueViewModel) {
