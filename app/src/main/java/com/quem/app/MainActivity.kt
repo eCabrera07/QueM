@@ -8,9 +8,10 @@ import com.quem.ui.theme.QueMTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val queueRepository = (application as QueMApplication).dependencies.queueRepository
         setContent {
             QueMTheme {
-                QueMApp()
+                QueMApp(queueRepository = queueRepository)
             }
         }
     }
