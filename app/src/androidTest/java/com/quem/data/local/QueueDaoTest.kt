@@ -96,7 +96,7 @@ class QueueDaoTest {
     ) = AttachmentEntity(
         id = id,
         queueItemId = queueItemId,
-        type = "NOTE",
+        type = "TEXT",
         displayName = "Attachment",
         textContent = "Body",
         url = null,

@@ -1,11 +1,18 @@
 package com.quem.data.local
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.time.Instant
 import java.time.LocalDate
 
-@Entity(tableName = "queue_items")
+@Entity(
+    tableName = "queue_items",
+    indices = [
+        Index(value = ["status", "updatedAt"]),
+        Index(value = ["syncState"])
+    ]
+)
 data class QueueItemEntity(
     @PrimaryKey val id: String,
     val driveId: String?,
