@@ -15,8 +15,11 @@ interface QueueDao {
         """
         SELECT * FROM queue_items
         WHERE status IN (:statuses)
-        AND (title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%')
-        ORDER BY updatedAt DESC
+        AND (
+            title LIKE '%' || :query || '%' ESCAPE '\'
+            OR description LIKE '%' || :query || '%' ESCAPE '\'
+        )
+        ORDER BY updatedAt DESC, id ASC
         """
     )
     fun searchItems(statuses: List<String>, query: String): Flow<List<QueueItemEntity>>

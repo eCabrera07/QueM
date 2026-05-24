@@ -9,4 +9,9 @@ class QueueSearchTest {
     fun archiveStatusesAreDoneAndDismissed() {
         assertEquals(listOf(QueueStatus.DONE, QueueStatus.DISMISSED), QueueFilters.archiveStatuses)
     }
+
+    @Test
+    fun escapeLikeQueryEscapesWildcardsAndEscapeCharacter() {
+        assertEquals("""\%\_\\contract""", QueueSearch.escapeLikeQuery("""%_\contract"""))
+    }
 }

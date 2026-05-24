@@ -114,6 +114,86 @@ class RoomQueueRepositoryTest {
     }
 
     @Test
+    fun searchArchiveTreatsPercentAsLiteralText() = runTest {
+        val dao = FakeQueueDao()
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { "unused" }
+        )
+        dao.upsertItem(
+            queueItemEntity(
+                id = "literal-match",
+                now = now,
+                title = "Read 100% complete",
+                status = QueueStatus.DONE
+            )
+        )
+        dao.upsertItem(
+            queueItemEntity(
+                id = "wildcard-miss",
+                now = now,
+                title = "Read complete",
+                status = QueueStatus.DONE
+            )
+        )
+
+        val items = repository.searchArchive("%").first()
+
+        assertEquals(listOf("literal-match"), items.map { it.id })
+    }
+
+    @Test
+    fun searchArchiveReturnsAllArchivedItemsForBlankQuery() = runTest {
+        val dao = FakeQueueDao()
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { "unused" }
+        )
+        dao.upsertItem(queueItemEntity(id = "done", now = now, status = QueueStatus.DONE))
+        dao.upsertItem(queueItemEntity(id = "dismissed", now = now.minusSeconds(60), status = QueueStatus.DISMISSED))
+        dao.upsertItem(queueItemEntity(id = "queued", now = now.plusSeconds(60), status = QueueStatus.QUEUED))
+
+        val items = repository.searchArchive("   ").first()
+
+        assertEquals(listOf("done", "dismissed"), items.map { it.id })
+    }
+
+    @Test
+    fun searchArchiveOrdersTiedResultsById() = runTest {
+        val dao = FakeQueueDao()
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { "unused" }
+        )
+        dao.upsertItem(
+            queueItemEntity(
+                id = "b-match",
+                now = now,
+                title = "Contract",
+                status = QueueStatus.DONE
+            )
+        )
+        dao.upsertItem(
+            queueItemEntity(
+                id = "a-match",
+                now = now,
+                title = "Contract",
+                status = QueueStatus.DISMISSED
+            )
+        )
+
+        val items = repository.searchArchive("contract").first()
+
+        assertEquals(listOf("a-match", "b-match"), items.map { it.id })
+    }
+
+    @Test
     fun createItemCreatesQueuedPendingSyncItem() = runTest {
         val dao = FakeQueueDao()
         val repository = RoomQueueRepository(
@@ -427,10 +507,10 @@ private class FakeQueueDao : QueueDao {
             items
                 .filter { it.status in statuses }
                 .filter {
-                    it.title.contains(query, ignoreCase = true) ||
-                        it.description?.contains(query, ignoreCase = true) == true
+                    likeContains(it.title, query) ||
+                        it.description?.let { description -> likeContains(description, query) } == true
                 }
-                .sortedByDescending { it.updatedAt }
+                .sortedWith(compareByDescending<QueueItemEntity> { it.updatedAt }.thenBy { it.id })
         }
 
     override fun observeItem(id: String): Flow<QueueItemEntity?> =
@@ -483,4 +563,26 @@ private class FakeQueueDao : QueueDao {
 
     override fun observeHistory(queueItemId: String): Flow<List<HistoryEntryEntity>> =
         MutableStateFlow(emptyList())
+}
+
+private fun likeContains(value: String, query: String): Boolean {
+    val pattern = buildString {
+        append(".*")
+        var index = 0
+        while (index < query.length) {
+            val char = query[index]
+            when {
+                char == '\\' && index + 1 < query.length -> {
+                    append(Regex.escape(query[index + 1].toString()))
+                    index++
+                }
+                char == '%' -> append(".*")
+                char == '_' -> append(".")
+                else -> append(Regex.escape(char.toString()))
+            }
+            index++
+        }
+        append(".*")
+    }
+    return Regex(pattern, RegexOption.IGNORE_CASE).matches(value)
 }

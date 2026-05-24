@@ -24,7 +24,7 @@ class RoomQueueRepository(
     override fun searchArchive(query: String): Flow<List<QueueItem>> =
         dao.searchItems(
             statuses = QueueFilters.archiveStatuses.map { it.name },
-            query = query.trim()
+            query = QueueSearch.escapeLikeQuery(query.trim())
         ).map { items -> items.map { it.toDomain() } }
 
     override fun observeItem(id: String): Flow<QueueItem?> =
