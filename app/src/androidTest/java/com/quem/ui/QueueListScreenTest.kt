@@ -1,9 +1,11 @@
 package com.quem.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.junit4.StateRestorationTester
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.quem.app.QueMApp
@@ -44,5 +46,21 @@ class QueueListScreenTest {
         restorationTester.emulateSavedInstanceStateRestore()
 
         compose.onNodeWithText("Dismissed").assertIsSelected()
+    }
+
+    @Test
+    fun dismissedSampleItemMovesOutOfQueuedList() {
+        compose.setContent {
+            QueMApp()
+        }
+
+        compose.onNodeWithText("Read contract").performClick()
+        compose.onNodeWithText("Dismiss").performClick()
+
+        compose.onNodeWithText("Dismissed").assertIsSelected()
+        compose.onNodeWithText("Read contract").assertIsDisplayed()
+
+        compose.onNodeWithText("Queued").performClick()
+        compose.onAllNodesWithText("Read contract").assertCountEquals(0)
     }
 }
