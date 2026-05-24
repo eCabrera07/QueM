@@ -45,7 +45,7 @@ interface QueueDao {
     @Upsert
     suspend fun upsertHistoryEntry(entry: HistoryEntryEntity)
 
-    @Query("SELECT * FROM attachments WHERE queueItemId = :queueItemId ORDER BY createdAt DESC")
+    @Query("SELECT * FROM attachments WHERE queueItemId = :queueItemId ORDER BY createdAt DESC, id ASC")
     fun observeAttachments(queueItemId: String): Flow<List<AttachmentEntity>>
 
     @Query("SELECT * FROM history_entries WHERE queueItemId = :queueItemId ORDER BY createdAt DESC")

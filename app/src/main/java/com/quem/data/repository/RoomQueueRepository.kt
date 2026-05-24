@@ -63,6 +63,8 @@ class RoomQueueRepository(
     }
 
     override suspend fun addTextAttachment(queueItemId: String, title: String, text: String) {
+        if (text.isBlank()) return
+
         addAttachment(
             queueItemId = queueItemId,
             title = title,
@@ -75,12 +77,15 @@ class RoomQueueRepository(
     }
 
     override suspend fun addLinkAttachment(queueItemId: String, title: String, url: String) {
+        val normalizedUrl = url.trim()
+        if (normalizedUrl.isBlank()) return
+
         addAttachment(
             queueItemId = queueItemId,
             title = title,
             type = AttachmentType.LINK,
             textContent = null,
-            url = url,
+            url = normalizedUrl,
             driveFileId = null,
             mimeType = null
         )
@@ -93,14 +98,17 @@ class RoomQueueRepository(
         mimeType: String?,
         isFolder: Boolean
     ) {
+        val normalizedDriveFileId = driveFileId.trim()
+        if (normalizedDriveFileId.isBlank()) return
+
         addAttachment(
             queueItemId = queueItemId,
             title = title,
             type = if (isFolder) AttachmentType.DRIVE_FOLDER else AttachmentType.DRIVE_FILE,
             textContent = null,
             url = null,
-            driveFileId = driveFileId,
-            mimeType = mimeType
+            driveFileId = normalizedDriveFileId,
+            mimeType = mimeType?.trim()?.takeIf { it.isNotBlank() }
         )
     }
 
@@ -113,12 +121,16 @@ class RoomQueueRepository(
         driveFileId: String?,
         mimeType: String?
     ) {
+        val displayName = title.trim()
+        if (displayName.isBlank()) return
+        if (dao.observeItem(queueItemId).first() == null) return
+
         val now = clock.now()
         val attachment = Attachment(
             id = idProvider(),
             queueItemId = queueItemId,
             type = type,
-            displayName = title.trim(),
+            displayName = displayName,
             textContent = textContent,
             url = url,
             driveFileId = driveFileId,

@@ -113,6 +113,18 @@ class QueueDaoTest {
         assertEquals(emptyList<HistoryEntryEntity>(), dao.observeHistory("parent").first())
     }
 
+    @Test
+    fun observeAttachmentsOrdersCreatedAtDescendingThenIdAscending() = runBlocking {
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        dao.upsertItem(queueItem(id = "parent", title = "Parent", now = now))
+        dao.upsertAttachment(attachment(id = "b-attachment", queueItemId = "parent", now = now))
+        dao.upsertAttachment(attachment(id = "a-attachment", queueItemId = "parent", now = now))
+
+        val attachments = dao.observeAttachments("parent").first()
+
+        assertEquals(listOf("a-attachment", "b-attachment"), attachments.map { it.id })
+    }
+
     private fun queueItem(
         id: String,
         title: String,

@@ -180,6 +180,8 @@ class RoomQueueRepositoryTest {
             clock = FixedClock(now),
             idProvider = { ids.removeFirst() }
         )
+        dao.upsertItem(queueItemEntity(id = "item-1", now = now))
+        dao.upsertItem(queueItemEntity(id = "item-2", now = now))
 
         repository.addTextAttachment("item-1", "  Note  ", "Remember this")
         repository.addLinkAttachment("item-1", "  Spec  ", "https://example.com/spec")
@@ -204,14 +206,14 @@ class RoomQueueRepositoryTest {
         assertEquals(
             listOf(
                 Attachment(
-                    id = "text-1",
+                    id = "drive-file-1",
                     queueItemId = "item-1",
-                    type = AttachmentType.TEXT,
-                    displayName = "Note",
-                    textContent = "Remember this",
+                    type = AttachmentType.DRIVE_FILE,
+                    displayName = "Contract",
+                    textContent = null,
                     url = null,
-                    driveFileId = null,
-                    mimeType = null,
+                    driveFileId = "drive-file-id",
+                    mimeType = "application/pdf",
                     createdAt = now,
                     updatedAt = now,
                     syncState = SyncState.PENDING_SYNC
@@ -230,14 +232,14 @@ class RoomQueueRepositoryTest {
                     syncState = SyncState.PENDING_SYNC
                 ),
                 Attachment(
-                    id = "drive-file-1",
+                    id = "text-1",
                     queueItemId = "item-1",
-                    type = AttachmentType.DRIVE_FILE,
-                    displayName = "Contract",
-                    textContent = null,
+                    type = AttachmentType.TEXT,
+                    displayName = "Note",
+                    textContent = "Remember this",
                     url = null,
-                    driveFileId = "drive-file-id",
-                    mimeType = "application/pdf",
+                    driveFileId = null,
+                    mimeType = null,
                     createdAt = now,
                     updatedAt = now,
                     syncState = SyncState.PENDING_SYNC
@@ -264,7 +266,92 @@ class RoomQueueRepositoryTest {
             folderAttachments
         )
     }
+
+    @Test
+    fun addAttachmentNoOpsWhenParentDoesNotExist() = runTest {
+        val dao = FakeQueueDao()
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { "attachment-1" }
+        )
+
+        repository.addTextAttachment("missing", "Note", "Remember this")
+
+        assertEquals(emptyList<Attachment>(), repository.observeAttachments("missing").first())
+    }
+
+    @Test
+    fun addAttachmentsNoOpWhenRequiredInputsAreBlankAndNormalizeOptionalInputs() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("link-1", "drive-1", "unused")
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { ids.removeFirst() }
+        )
+        dao.upsertItem(queueItemEntity(id = "item-1", now = now))
+
+        repository.addTextAttachment("item-1", "   ", "Remember this")
+        repository.addTextAttachment("item-1", "Blank text", "   ")
+        repository.addLinkAttachment("item-1", "Blank link", "   ")
+        repository.addDriveAttachment("item-1", "Blank drive", "   ", " text/plain ", isFolder = false)
+        repository.addLinkAttachment("item-1", " Link ", " https://example.com/spec ")
+        repository.addDriveAttachment("item-1", " Drive ", " drive-file-id ", "   ", isFolder = false)
+
+        assertEquals(
+            listOf(
+                Attachment(
+                    id = "drive-1",
+                    queueItemId = "item-1",
+                    type = AttachmentType.DRIVE_FILE,
+                    displayName = "Drive",
+                    textContent = null,
+                    url = null,
+                    driveFileId = "drive-file-id",
+                    mimeType = null,
+                    createdAt = now,
+                    updatedAt = now,
+                    syncState = SyncState.PENDING_SYNC
+                ),
+                Attachment(
+                    id = "link-1",
+                    queueItemId = "item-1",
+                    type = AttachmentType.LINK,
+                    displayName = "Link",
+                    textContent = null,
+                    url = "https://example.com/spec",
+                    driveFileId = null,
+                    mimeType = null,
+                    createdAt = now,
+                    updatedAt = now,
+                    syncState = SyncState.PENDING_SYNC
+                )
+            ),
+            repository.observeAttachments("item-1").first()
+        )
+    }
 }
+
+private fun queueItemEntity(
+    id: String,
+    now: Instant
+) = QueueItemEntity(
+    id = id,
+    driveId = null,
+    title = "Item",
+    description = null,
+    status = QueueStatus.QUEUED.name,
+    priority = null,
+    dueDate = null,
+    tags = emptyList(),
+    createdAt = now,
+    updatedAt = now,
+    completedAt = null,
+    dismissedAt = null,
+    syncState = SyncState.PENDING_SYNC.name
+)
 
 private class FakeQueueDao : QueueDao {
     private val entities = MutableStateFlow<List<QueueItemEntity>>(emptyList())
@@ -318,7 +405,11 @@ private class FakeQueueDao : QueueDao {
     override suspend fun upsertHistoryEntry(entry: HistoryEntryEntity) = Unit
 
     override fun observeAttachments(queueItemId: String): Flow<List<AttachmentEntity>> =
-        attachmentEntities.map { attachments -> attachments.filter { it.queueItemId == queueItemId } }
+        attachmentEntities.map { attachments ->
+            attachments
+                .filter { it.queueItemId == queueItemId }
+                .sortedWith(compareByDescending<AttachmentEntity> { it.createdAt }.thenBy { it.id })
+        }
 
     override fun observeHistory(queueItemId: String): Flow<List<HistoryEntryEntity>> =
         MutableStateFlow(emptyList())
