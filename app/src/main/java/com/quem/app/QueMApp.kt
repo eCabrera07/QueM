@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.quem.core.model.QueueStatus
+import com.quem.ui.CreateItemScreen
 import com.quem.ui.ItemDetailScreen
 import com.quem.ui.QueueListItemUi
 import com.quem.ui.QueueListScreen
@@ -16,6 +17,7 @@ import com.quem.ui.QueueListScreen
 fun QueMApp() {
     var selectedStatus by rememberSaveable { mutableStateOf(QueueStatus.QUEUED) }
     var selectedItemId by rememberSaveable { mutableStateOf<String?>(null) }
+    var isCreatingItem by rememberSaveable { mutableStateOf(false) }
     val sampleItems = remember {
         mutableStateListOf(
             SampleQueueItem(
@@ -41,7 +43,29 @@ fun QueMApp() {
         selectedItemId = null
     }
 
-    if (selectedItem == null) {
+    if (isCreatingItem) {
+        CreateItemScreen(
+            onSave = { title, description, priority, dueDate ->
+                val itemId = "sample-${sampleItems.size + 1}"
+                sampleItems.add(
+                    SampleQueueItem(
+                        id = itemId,
+                        title = title,
+                        description = description,
+                        status = QueueStatus.QUEUED,
+                        priorityLabel = priority,
+                        dueDateLabel = dueDate,
+                        attachments = emptyList(),
+                        history = listOf("Created item")
+                    )
+                )
+                selectedStatus = QueueStatus.QUEUED
+                selectedItemId = itemId
+                isCreatingItem = false
+            },
+            onCancel = { isCreatingItem = false }
+        )
+    } else if (selectedItem == null) {
         QueueListScreen(
             selectedStatus = selectedStatus,
             items = sampleItems
@@ -49,7 +73,7 @@ fun QueMApp() {
                 .map { it.toListItemUi() },
             onStatusSelected = { selectedStatus = it },
             onItemSelected = { selectedItemId = it },
-            onCreateItem = {}
+            onCreateItem = { isCreatingItem = true }
         )
     } else {
         ItemDetailScreen(
