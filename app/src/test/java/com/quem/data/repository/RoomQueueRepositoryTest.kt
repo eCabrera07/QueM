@@ -58,6 +58,62 @@ class RoomQueueRepositoryTest {
     }
 
     @Test
+    fun searchArchiveReturnsDoneAndDismissedMatchesOnly() = runTest {
+        val dao = FakeQueueDao()
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { "unused" }
+        )
+        dao.upsertItem(
+            queueItemEntity(
+                id = "done-match",
+                now = now.minusSeconds(60),
+                title = "Read contract",
+                status = QueueStatus.DONE
+            )
+        )
+        dao.upsertItem(
+            queueItemEntity(
+                id = "dismissed-match",
+                now = now,
+                title = "Close duplicate",
+                description = "Contract no longer needed",
+                status = QueueStatus.DISMISSED
+            )
+        )
+        dao.upsertItem(
+            queueItemEntity(
+                id = "queued-match",
+                now = now.plusSeconds(60),
+                title = "Contract draft",
+                status = QueueStatus.QUEUED
+            )
+        )
+        dao.upsertItem(
+            queueItemEntity(
+                id = "progress-match",
+                now = now.plusSeconds(120),
+                title = "Contract review",
+                status = QueueStatus.IN_PROGRESS
+            )
+        )
+        dao.upsertItem(
+            queueItemEntity(
+                id = "done-miss",
+                now = now.plusSeconds(180),
+                title = "Pay invoice",
+                status = QueueStatus.DONE
+            )
+        )
+
+        val items = repository.searchArchive("  contract  ").first()
+
+        assertEquals(listOf("dismissed-match", "done-match"), items.map { it.id })
+    }
+
+    @Test
     fun createItemCreatesQueuedPendingSyncItem() = runTest {
         val dao = FakeQueueDao()
         val repository = RoomQueueRepository(
@@ -336,13 +392,16 @@ class RoomQueueRepositoryTest {
 
 private fun queueItemEntity(
     id: String,
-    now: Instant
+    now: Instant,
+    title: String = "Item",
+    description: String? = null,
+    status: QueueStatus = QueueStatus.QUEUED
 ) = QueueItemEntity(
     id = id,
     driveId = null,
-    title = "Item",
-    description = null,
-    status = QueueStatus.QUEUED.name,
+    title = title,
+    description = description,
+    status = status.name,
     priority = null,
     dueDate = null,
     tags = emptyList(),
@@ -362,6 +421,17 @@ private class FakeQueueDao : QueueDao {
 
     override fun observeItemsByStatus(status: String): Flow<List<QueueItemEntity>> =
         entities.map { items -> items.filter { it.status == status } }
+
+    override fun searchItems(statuses: List<String>, query: String): Flow<List<QueueItemEntity>> =
+        entities.map { items ->
+            items
+                .filter { it.status in statuses }
+                .filter {
+                    it.title.contains(query, ignoreCase = true) ||
+                        it.description?.contains(query, ignoreCase = true) == true
+                }
+                .sortedByDescending { it.updatedAt }
+        }
 
     override fun observeItem(id: String): Flow<QueueItemEntity?> =
         entities.map { items -> items.singleOrNull { it.id == id } }

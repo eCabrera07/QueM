@@ -11,6 +11,16 @@ interface QueueDao {
     @Query("SELECT * FROM queue_items WHERE status = :status ORDER BY updatedAt DESC")
     fun observeItemsByStatus(status: String): Flow<List<QueueItemEntity>>
 
+    @Query(
+        """
+        SELECT * FROM queue_items
+        WHERE status IN (:statuses)
+        AND (title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%')
+        ORDER BY updatedAt DESC
+        """
+    )
+    fun searchItems(statuses: List<String>, query: String): Flow<List<QueueItemEntity>>
+
     @Query("SELECT * FROM queue_items WHERE id = :id LIMIT 1")
     fun observeItem(id: String): Flow<QueueItemEntity?>
 

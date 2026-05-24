@@ -21,6 +21,12 @@ class RoomQueueRepository(
     override fun observeItems(status: QueueStatus): Flow<List<QueueItem>> =
         dao.observeItemsByStatus(status.name).map { items -> items.map { it.toDomain() } }
 
+    override fun searchArchive(query: String): Flow<List<QueueItem>> =
+        dao.searchItems(
+            statuses = QueueFilters.archiveStatuses.map { it.name },
+            query = query.trim()
+        ).map { items -> items.map { it.toDomain() } }
+
     override fun observeItem(id: String): Flow<QueueItem?> =
         dao.observeItem(id).map { it?.toDomain() }
 
