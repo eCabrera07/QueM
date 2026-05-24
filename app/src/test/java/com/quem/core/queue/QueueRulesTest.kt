@@ -17,6 +17,7 @@ class QueueRulesTest {
         val result = QueueRules.changeStatus(item, QueueStatus.DONE, clock)
 
         assertEquals(QueueStatus.DONE, result.status)
+        assertEquals(clock.now(), result.updatedAt)
         assertEquals(clock.now(), result.completedAt)
         assertNull(result.dismissedAt)
         assertEquals(SyncState.PENDING_SYNC, result.syncState)
@@ -28,6 +29,7 @@ class QueueRulesTest {
         val result = QueueRules.changeStatus(item, QueueStatus.DISMISSED, clock)
 
         assertEquals(QueueStatus.DISMISSED, result.status)
+        assertEquals(clock.now(), result.updatedAt)
         assertEquals(clock.now(), result.dismissedAt)
         assertNull(result.completedAt)
         assertEquals(SyncState.PENDING_SYNC, result.syncState)
@@ -44,6 +46,19 @@ class QueueRulesTest {
         assertEquals(QueueStatus.QUEUED, result.status)
         assertNull(result.completedAt)
         assertNull(result.dismissedAt)
+    }
+
+    @Test
+    fun reopenFromDismissedClearsDismissedAtAndLeavesCompletedAtNull() {
+        val item = TestItems.queueItem(
+            status = QueueStatus.DISMISSED,
+            dismissedAt = Instant.parse("2026-05-20T12:00:00Z")
+        )
+        val result = QueueRules.changeStatus(item, QueueStatus.QUEUED, clock)
+
+        assertEquals(QueueStatus.QUEUED, result.status)
+        assertNull(result.dismissedAt)
+        assertNull(result.completedAt)
     }
 }
 
