@@ -1,5 +1,7 @@
 package com.quem.data.local
 
+import com.quem.core.model.Attachment
+import com.quem.core.model.AttachmentType
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
@@ -34,5 +36,33 @@ fun QueueItem.toEntity(): QueueItemEntity = QueueItemEntity(
     updatedAt = updatedAt,
     completedAt = completedAt,
     dismissedAt = dismissedAt,
+    syncState = syncState.name
+)
+
+fun AttachmentEntity.toDomain(): Attachment = Attachment(
+    id = id,
+    queueItemId = queueItemId,
+    type = AttachmentType.valueOf(type),
+    displayName = displayName,
+    textContent = textContent,
+    url = url,
+    driveFileId = driveFileId,
+    mimeType = mimeType,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    syncState = SyncState.valueOf(syncState)
+)
+
+fun Attachment.toEntity(): AttachmentEntity = AttachmentEntity(
+    id = id,
+    queueItemId = queueItemId,
+    type = type.name,
+    displayName = displayName,
+    textContent = textContent,
+    url = url,
+    driveFileId = driveFileId,
+    mimeType = mimeType,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
     syncState = syncState.name
 )

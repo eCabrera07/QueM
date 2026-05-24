@@ -1,5 +1,7 @@
 package com.quem.data.repository
 
+import com.quem.core.model.Attachment
+import com.quem.core.model.AttachmentType
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
@@ -167,10 +169,106 @@ class RoomQueueRepositoryTest {
         assertNull(changed.dismissedAt)
         assertEquals(SyncState.PENDING_SYNC, changed.syncState)
     }
+
+    @Test
+    fun addAttachmentsCreatesPendingSyncAttachmentsAndObservesByParent() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("text-1", "link-1", "drive-file-1", "drive-folder-1")
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { ids.removeFirst() }
+        )
+
+        repository.addTextAttachment("item-1", "  Note  ", "Remember this")
+        repository.addLinkAttachment("item-1", "  Spec  ", "https://example.com/spec")
+        repository.addDriveAttachment(
+            queueItemId = "item-1",
+            title = " Contract ",
+            driveFileId = "drive-file-id",
+            mimeType = "application/pdf",
+            isFolder = false
+        )
+        repository.addDriveAttachment(
+            queueItemId = "item-2",
+            title = " Folder ",
+            driveFileId = "drive-folder-id",
+            mimeType = null,
+            isFolder = true
+        )
+
+        val attachments = repository.observeAttachments("item-1").first()
+        val folderAttachments = repository.observeAttachments("item-2").first()
+
+        assertEquals(
+            listOf(
+                Attachment(
+                    id = "text-1",
+                    queueItemId = "item-1",
+                    type = AttachmentType.TEXT,
+                    displayName = "Note",
+                    textContent = "Remember this",
+                    url = null,
+                    driveFileId = null,
+                    mimeType = null,
+                    createdAt = now,
+                    updatedAt = now,
+                    syncState = SyncState.PENDING_SYNC
+                ),
+                Attachment(
+                    id = "link-1",
+                    queueItemId = "item-1",
+                    type = AttachmentType.LINK,
+                    displayName = "Spec",
+                    textContent = null,
+                    url = "https://example.com/spec",
+                    driveFileId = null,
+                    mimeType = null,
+                    createdAt = now,
+                    updatedAt = now,
+                    syncState = SyncState.PENDING_SYNC
+                ),
+                Attachment(
+                    id = "drive-file-1",
+                    queueItemId = "item-1",
+                    type = AttachmentType.DRIVE_FILE,
+                    displayName = "Contract",
+                    textContent = null,
+                    url = null,
+                    driveFileId = "drive-file-id",
+                    mimeType = "application/pdf",
+                    createdAt = now,
+                    updatedAt = now,
+                    syncState = SyncState.PENDING_SYNC
+                )
+            ),
+            attachments
+        )
+        assertEquals(
+            listOf(
+                Attachment(
+                    id = "drive-folder-1",
+                    queueItemId = "item-2",
+                    type = AttachmentType.DRIVE_FOLDER,
+                    displayName = "Folder",
+                    textContent = null,
+                    url = null,
+                    driveFileId = "drive-folder-id",
+                    mimeType = null,
+                    createdAt = now,
+                    updatedAt = now,
+                    syncState = SyncState.PENDING_SYNC
+                )
+            ),
+            folderAttachments
+        )
+    }
 }
 
 private class FakeQueueDao : QueueDao {
     private val entities = MutableStateFlow<List<QueueItemEntity>>(emptyList())
+    private val attachmentEntities = MutableStateFlow<List<AttachmentEntity>>(emptyList())
 
     val items
         get() = entities.value.map { it.toDomain() }
@@ -213,12 +311,14 @@ private class FakeQueueDao : QueueDao {
         return updatedRows
     }
 
-    override suspend fun upsertAttachment(attachment: AttachmentEntity) = Unit
+    override suspend fun upsertAttachment(attachment: AttachmentEntity) {
+        attachmentEntities.value = attachmentEntities.value.filterNot { it.id == attachment.id } + attachment
+    }
 
     override suspend fun upsertHistoryEntry(entry: HistoryEntryEntity) = Unit
 
     override fun observeAttachments(queueItemId: String): Flow<List<AttachmentEntity>> =
-        MutableStateFlow(emptyList())
+        attachmentEntities.map { attachments -> attachments.filter { it.queueItemId == queueItemId } }
 
     override fun observeHistory(queueItemId: String): Flow<List<HistoryEntryEntity>> =
         MutableStateFlow(emptyList())

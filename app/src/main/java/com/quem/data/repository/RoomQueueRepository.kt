@@ -1,5 +1,7 @@
 package com.quem.data.repository
 
+import com.quem.core.model.Attachment
+import com.quem.core.model.AttachmentType
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
@@ -21,6 +23,9 @@ class RoomQueueRepository(
 
     override fun observeItem(id: String): Flow<QueueItem?> =
         dao.observeItem(id).map { it?.toDomain() }
+
+    override fun observeAttachments(queueItemId: String): Flow<List<Attachment>> =
+        dao.observeAttachments(queueItemId).map { attachments -> attachments.map { it.toDomain() } }
 
     override suspend fun createItem(title: String, description: String?): QueueItem {
         val now = clock.now()
@@ -55,5 +60,73 @@ class RoomQueueRepository(
         if (updatedRows == 0) return null
 
         return dao.observeItem(id).first()?.toDomain()
+    }
+
+    override suspend fun addTextAttachment(queueItemId: String, title: String, text: String) {
+        addAttachment(
+            queueItemId = queueItemId,
+            title = title,
+            type = AttachmentType.TEXT,
+            textContent = text,
+            url = null,
+            driveFileId = null,
+            mimeType = null
+        )
+    }
+
+    override suspend fun addLinkAttachment(queueItemId: String, title: String, url: String) {
+        addAttachment(
+            queueItemId = queueItemId,
+            title = title,
+            type = AttachmentType.LINK,
+            textContent = null,
+            url = url,
+            driveFileId = null,
+            mimeType = null
+        )
+    }
+
+    override suspend fun addDriveAttachment(
+        queueItemId: String,
+        title: String,
+        driveFileId: String,
+        mimeType: String?,
+        isFolder: Boolean
+    ) {
+        addAttachment(
+            queueItemId = queueItemId,
+            title = title,
+            type = if (isFolder) AttachmentType.DRIVE_FOLDER else AttachmentType.DRIVE_FILE,
+            textContent = null,
+            url = null,
+            driveFileId = driveFileId,
+            mimeType = mimeType
+        )
+    }
+
+    private suspend fun addAttachment(
+        queueItemId: String,
+        title: String,
+        type: AttachmentType,
+        textContent: String?,
+        url: String?,
+        driveFileId: String?,
+        mimeType: String?
+    ) {
+        val now = clock.now()
+        val attachment = Attachment(
+            id = idProvider(),
+            queueItemId = queueItemId,
+            type = type,
+            displayName = title.trim(),
+            textContent = textContent,
+            url = url,
+            driveFileId = driveFileId,
+            mimeType = mimeType,
+            createdAt = now,
+            updatedAt = now,
+            syncState = SyncState.PENDING_SYNC
+        )
+        dao.upsertAttachment(attachment.toEntity())
     }
 }
