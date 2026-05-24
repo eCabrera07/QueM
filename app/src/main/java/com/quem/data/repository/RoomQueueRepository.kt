@@ -3,7 +3,6 @@ package com.quem.data.repository
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
-import com.quem.core.queue.QueueRules
 import com.quem.core.time.Clock
 import com.quem.data.local.QueueDao
 import com.quem.data.local.toDomain
@@ -28,8 +27,8 @@ class RoomQueueRepository(
         val item = QueueItem(
             id = idProvider(),
             driveId = null,
-            title = title,
-            description = description,
+            title = title.trim(),
+            description = description?.trim()?.takeIf { it.isNotEmpty() },
             status = QueueStatus.QUEUED,
             priority = null,
             dueDate = null,
@@ -44,11 +43,17 @@ class RoomQueueRepository(
         return item
     }
 
-    override suspend fun changeStatus(id: String, status: QueueStatus): QueueItem {
-        val item = dao.observeItem(id).first()?.toDomain()
-            ?: error("Queue item not found: $id")
-        val changed = QueueRules.changeStatus(item, status, clock)
-        dao.upsertItem(changed.toEntity())
-        return changed
+    override suspend fun changeStatus(id: String, status: QueueStatus): QueueItem? {
+        val now = clock.now()
+        val updatedRows = dao.updateStatus(
+            id = id,
+            status = status.name,
+            updatedAt = now,
+            completedAt = if (status == QueueStatus.DONE) now else null,
+            dismissedAt = if (status == QueueStatus.DISMISSED) now else null
+        )
+        if (updatedRows == 0) return null
+
+        return dao.observeItem(id).first()?.toDomain()
     }
 }

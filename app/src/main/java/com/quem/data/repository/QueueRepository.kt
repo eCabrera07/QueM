@@ -11,5 +11,5 @@ interface QueueRepository {
 
     suspend fun createItem(title: String, description: String?): QueueItem
 
-    suspend fun changeStatus(id: String, status: QueueStatus): QueueItem
+    suspend fun changeStatus(id: String, status: QueueStatus): QueueItem?
 }

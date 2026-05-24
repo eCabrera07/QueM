@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 
 @Dao
 interface QueueDao {
@@ -18,6 +19,25 @@ interface QueueDao {
 
     @Upsert
     suspend fun upsertItem(item: QueueItemEntity)
+
+    @Query(
+        """
+        UPDATE queue_items
+        SET status = :status,
+            updatedAt = :updatedAt,
+            completedAt = :completedAt,
+            dismissedAt = :dismissedAt,
+            syncState = 'PENDING_SYNC'
+        WHERE id = :id
+        """
+    )
+    suspend fun updateStatus(
+        id: String,
+        status: String,
+        updatedAt: Instant,
+        completedAt: Instant?,
+        dismissedAt: Instant?
+    ): Int
 
     @Upsert
     suspend fun upsertAttachment(attachment: AttachmentEntity)

@@ -1,5 +1,7 @@
 package com.quem.data.repository
 
+import com.quem.core.model.Priority
+import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
 import com.quem.core.time.FixedClock
@@ -17,6 +19,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalDate
 
 class RoomQueueRepositoryTest {
     @Test
@@ -71,6 +74,22 @@ class RoomQueueRepositoryTest {
     }
 
     @Test
+    fun createItemTrimsTitleAndNormalizesBlankDescription() = runTest {
+        val dao = FakeQueueDao()
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { "item-1" }
+        )
+
+        val created = repository.createItem(title = "  Read contract  ", description = "   ")
+
+        assertEquals("Read contract", created.title)
+        assertNull(created.description)
+        assertEquals(created, dao.items.single())
+    }
+
+    @Test
     fun changeStatusAppliesQueueRulesAndPersistsItem() = runTest {
         val dao = FakeQueueDao()
         val repository = RoomQueueRepository(
@@ -82,12 +101,71 @@ class RoomQueueRepositoryTest {
 
         val changed = repository.changeStatus("item-1", QueueStatus.DONE)
 
+        requireNotNull(changed)
         assertEquals(QueueStatus.DONE, changed.status)
         assertEquals(Instant.parse("2026-05-23T12:00:00Z"), changed.updatedAt)
         assertEquals(Instant.parse("2026-05-23T12:00:00Z"), changed.completedAt)
         assertNull(changed.dismissedAt)
         assertEquals(SyncState.PENDING_SYNC, changed.syncState)
         assertEquals(changed, dao.items.single())
+    }
+
+    @Test
+    fun changeStatusNoOpsWhenItemDoesNotExist() = runTest {
+        val dao = FakeQueueDao()
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { "item-1" }
+        )
+
+        val changed = repository.changeStatus("missing", QueueStatus.DONE)
+
+        assertNull(changed)
+        assertEquals(emptyList<QueueItem>(), dao.items)
+    }
+
+    @Test
+    fun changeStatusPreservesFieldsOutsideStatusPatch() = runTest {
+        val dao = FakeQueueDao()
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { "item-1" }
+        )
+        dao.upsertItem(
+            QueueItemEntity(
+                id = "item-1",
+                driveId = "drive-1",
+                title = "Read contract",
+                description = "Legal",
+                status = QueueStatus.QUEUED.name,
+                priority = Priority.HIGH.name,
+                dueDate = LocalDate.parse("2026-05-24"),
+                tags = listOf("legal", "urgent"),
+                createdAt = Instant.parse("2026-05-22T12:00:00Z"),
+                updatedAt = Instant.parse("2026-05-22T12:00:00Z"),
+                completedAt = null,
+                dismissedAt = null,
+                syncState = SyncState.SYNCED.name
+            )
+        )
+
+        val changed = repository.changeStatus("item-1", QueueStatus.DONE)
+
+        requireNotNull(changed)
+        assertEquals("drive-1", changed.driveId)
+        assertEquals("Read contract", changed.title)
+        assertEquals("Legal", changed.description)
+        assertEquals(Priority.HIGH, changed.priority)
+        assertEquals(LocalDate.parse("2026-05-24"), changed.dueDate)
+        assertEquals(listOf("legal", "urgent"), changed.tags)
+        assertEquals(Instant.parse("2026-05-22T12:00:00Z"), changed.createdAt)
+        assertEquals(QueueStatus.DONE, changed.status)
+        assertEquals(Instant.parse("2026-05-23T12:00:00Z"), changed.updatedAt)
+        assertEquals(Instant.parse("2026-05-23T12:00:00Z"), changed.completedAt)
+        assertNull(changed.dismissedAt)
+        assertEquals(SyncState.PENDING_SYNC, changed.syncState)
     }
 }
 
@@ -108,6 +186,31 @@ private class FakeQueueDao : QueueDao {
 
     override suspend fun upsertItem(item: QueueItemEntity) {
         entities.value = entities.value.filterNot { it.id == item.id } + item
+    }
+
+    override suspend fun updateStatus(
+        id: String,
+        status: String,
+        updatedAt: Instant,
+        completedAt: Instant?,
+        dismissedAt: Instant?
+    ): Int {
+        var updatedRows = 0
+        entities.value = entities.value.map { item ->
+            if (item.id == id) {
+                updatedRows++
+                item.copy(
+                    status = status,
+                    updatedAt = updatedAt,
+                    completedAt = completedAt,
+                    dismissedAt = dismissedAt,
+                    syncState = SyncState.PENDING_SYNC.name
+                )
+            } else {
+                item
+            }
+        }
+        return updatedRows
     }
 
     override suspend fun upsertAttachment(attachment: AttachmentEntity) = Unit
