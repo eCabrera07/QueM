@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -41,7 +42,19 @@ class QueueViewModel(
     val items: StateFlow<List<QueueListItemUi>> =
         selectedStatus
             .flatMapLatest { status -> repository.observeItems(status) }
-            .map { items -> items.map { it.toListItemUi() } }
+            .flatMapLatest { items ->
+                if (items.isEmpty()) {
+                    flowOf(emptyList())
+                } else {
+                    combine(
+                        items.map { item ->
+                            repository.observeAttachments(item.id).map { attachments ->
+                                item.toListItemUi(attachmentCount = attachments.size)
+                            }
+                        }
+                    ) { listItems -> listItems.toList() }
+                }
+            }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
@@ -54,7 +67,12 @@ class QueueViewModel(
                 if (id == null) {
                     flowOf(null)
                 } else {
-                    repository.observeItem(id).map { item -> item?.toDetailUi() }
+                    combine(
+                        repository.observeItem(id),
+                        repository.observeAttachments(id)
+                    ) { item, attachments ->
+                        item?.toDetailUi(attachments = attachments.map { it.displayName })
+                    }
                 }
             }
             .stateIn(
@@ -123,19 +141,22 @@ class QueueViewModel(
     }
 }
 
-private fun QueueItem.toListItemUi() = QueueListItemUi(
+private fun QueueItem.toListItemUi(attachmentCount: Int) = QueueListItemUi(
     id = id,
     title = title,
     priorityLabel = priority?.name,
     dueDateLabel = dueDate?.toString(),
-    attachmentSummary = "0 attachments"
+    attachmentSummary = attachmentCount.toAttachmentSummary()
 )
 
-private fun QueueItem.toDetailUi() = QueueItemDetailUi(
+private fun QueueItem.toDetailUi(attachments: List<String>) = QueueItemDetailUi(
     id = id,
     title = title,
     description = description,
     dueDateLabel = dueDate?.toString(),
-    attachments = emptyList(),
+    attachments = attachments,
     history = emptyList()
 )
+
+private fun Int.toAttachmentSummary(): String =
+    if (this == 1) "1 attachment" else "$this attachments"
