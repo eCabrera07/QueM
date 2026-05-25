@@ -5,7 +5,6 @@ import android.content.Intent
 import androidx.activity.result.IntentSenderRequest
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -68,7 +67,7 @@ class GoogleDriveConnectionRepositoryTest {
         val repository = GoogleDriveConnectionRepository(coordinator)
 
         repository.requestSignIn()
-        coordinator.completeLaunchedResolution(ActivityResultData(resultCode = RESULT_OK, data = Intent()))
+        repository.handleResolutionResult(ActivityResultData(resultCode = RESULT_OK, data = Intent()))
 
         assertEquals(
             DriveConnectionState.Connected(DriveAccount("user@example.com")),
@@ -87,10 +86,40 @@ class GoogleDriveConnectionRepositoryTest {
         val repository = GoogleDriveConnectionRepository(coordinator)
 
         repository.requestSignIn()
-        coordinator.completeLaunchedResolution(ActivityResultData(resultCode = RESULT_CANCELED, data = null))
+        repository.handleResolutionResult(ActivityResultData(resultCode = RESULT_CANCELED, data = null))
 
         assertEquals(
             DriveConnectionState.Error("Google Drive authorization cancelled"),
+            repository.state.value
+        )
+    }
+
+    @Test
+    fun coordinatorCanBeAttachedAfterRepositoryCreation() {
+        val coordinator = FakeDriveAuthorizationCoordinator(
+            requestResult = DriveAuthorizationRequestResult.Authorized(
+                DriveAuthorizationGrant(accountEmail = "user@example.com")
+            )
+        )
+        val repository = GoogleDriveConnectionRepository()
+
+        repository.setAuthorizationCoordinator(coordinator)
+        repository.requestSignIn()
+
+        assertEquals(
+            DriveConnectionState.Connected(DriveAccount("user@example.com")),
+            repository.state.value
+        )
+    }
+
+    @Test
+    fun requestSignInWithoutCoordinatorMovesToError() {
+        val repository = GoogleDriveConnectionRepository()
+
+        repository.requestSignIn()
+
+        assertEquals(
+            DriveConnectionState.Error("Google Drive authorization unavailable"),
             repository.state.value
         )
     }
@@ -118,7 +147,6 @@ private class FakeDriveAuthorizationCoordinator(
     private val requestResult: DriveAuthorizationRequestResult,
     private val resolutionResult: DriveAuthorizationGrant? = null
 ) : DriveAuthorizationCoordinator {
-    private var resolutionCallback: ((ActivityResultData) -> Unit)? = null
     var launchedRequest: IntentSenderRequest? = null
         private set
 
@@ -126,12 +154,8 @@ private class FakeDriveAuthorizationCoordinator(
         onResult(requestResult)
     }
 
-    override fun launchResolution(
-        request: IntentSenderRequest,
-        onResult: (ActivityResultData) -> Unit
-    ) {
+    override fun launchResolution(request: IntentSenderRequest) {
         launchedRequest = request
-        resolutionCallback = onResult
     }
 
     override fun parseResolutionResult(result: ActivityResultData): DriveAuthorizationResolutionResult =
@@ -141,10 +165,6 @@ private class FakeDriveAuthorizationCoordinator(
             DriveAuthorizationResolutionResult.Cancelled
         }
 
-    fun completeLaunchedResolution(result: ActivityResultData) {
-        assertNotNull(resolutionCallback)
-        resolutionCallback?.invoke(result)
-    }
 }
 
 private object FakeIntentSender {

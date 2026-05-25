@@ -5,20 +5,29 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class GoogleDriveConnectionRepository(
-    private val authorizationCoordinator: DriveAuthorizationCoordinator
+    initialAuthorizationCoordinator: DriveAuthorizationCoordinator? = null
 ) : DriveConnectionRepository {
     private val mutableState = MutableStateFlow<DriveConnectionState>(DriveConnectionState.Disconnected)
+    private var authorizationCoordinator: DriveAuthorizationCoordinator? = initialAuthorizationCoordinator
 
     override val state: StateFlow<DriveConnectionState> = mutableState.asStateFlow()
 
+    fun setAuthorizationCoordinator(authorizationCoordinator: DriveAuthorizationCoordinator) {
+        this.authorizationCoordinator = authorizationCoordinator
+    }
+
     override fun requestSignIn() {
-        authorizationCoordinator.requestAuthorization { result ->
+        val coordinator = authorizationCoordinator
+        if (coordinator == null) {
+            mutableState.value = DriveConnectionState.Error("Google Drive authorization unavailable")
+            return
+        }
+
+        coordinator.requestAuthorization { result ->
             when (result) {
                 is DriveAuthorizationRequestResult.Authorized -> connect(result.grant)
                 is DriveAuthorizationRequestResult.ResolutionRequired -> {
-                    authorizationCoordinator.launchResolution(result.request) { activityResult ->
-                        handleResolutionResult(activityResult)
-                    }
+                    coordinator.launchResolution(result.request)
                 }
                 is DriveAuthorizationRequestResult.Failed -> {
                     mutableState.value = DriveConnectionState.Error(result.message)
@@ -31,8 +40,14 @@ class GoogleDriveConnectionRepository(
         mutableState.value = DriveConnectionState.Disconnected
     }
 
-    private fun handleResolutionResult(activityResult: ActivityResultData) {
-        when (val result = authorizationCoordinator.parseResolutionResult(activityResult)) {
+    fun handleResolutionResult(activityResult: ActivityResultData) {
+        val coordinator = authorizationCoordinator
+        if (coordinator == null) {
+            mutableState.value = DriveConnectionState.Error("Google Drive authorization unavailable")
+            return
+        }
+
+        when (val result = coordinator.parseResolutionResult(activityResult)) {
             is DriveAuthorizationResolutionResult.Authorized -> connect(result.grant)
             DriveAuthorizationResolutionResult.Cancelled -> {
                 mutableState.value = DriveConnectionState.Error("Google Drive authorization cancelled")

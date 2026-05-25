@@ -12,8 +12,6 @@ class GoogleDriveAuthorizationCoordinator(
     private val activity: Activity,
     private val resolutionLauncher: ActivityResultLauncher<IntentSenderRequest>
 ) : DriveAuthorizationCoordinator {
-    private var pendingResolutionCallback: ((ActivityResultData) -> Unit)? = null
-
     override fun requestAuthorization(onResult: (DriveAuthorizationRequestResult) -> Unit) {
         val request = AuthorizationRequest.builder()
             .setRequestedScopes(requiredScopes())
@@ -21,10 +19,10 @@ class GoogleDriveAuthorizationCoordinator(
 
         Identity.getAuthorizationClient(activity)
             .authorize(request)
-            .addOnSuccessListener { result ->
+            .addOnSuccessListener(activity) { result ->
                 onResult(result.toRequestResult())
             }
-            .addOnFailureListener { error ->
+            .addOnFailureListener(activity) { error ->
                 onResult(
                     DriveAuthorizationRequestResult.Failed(
                         error.localizedMessage ?: "Google Drive authorization failed"
@@ -33,11 +31,7 @@ class GoogleDriveAuthorizationCoordinator(
             }
     }
 
-    override fun launchResolution(
-        request: IntentSenderRequest,
-        onResult: (ActivityResultData) -> Unit
-    ) {
-        pendingResolutionCallback = onResult
+    override fun launchResolution(request: IntentSenderRequest) {
         resolutionLauncher.launch(request)
     }
 
@@ -55,12 +49,6 @@ class GoogleDriveAuthorizationCoordinator(
                 error.localizedMessage ?: "Google Drive authorization failed"
             )
         }
-    }
-
-    fun dispatchResolutionResult(result: ActivityResultData) {
-        val callback = pendingResolutionCallback
-        pendingResolutionCallback = null
-        callback?.invoke(result)
     }
 
     private fun AuthorizationResult.toRequestResult(): DriveAuthorizationRequestResult {

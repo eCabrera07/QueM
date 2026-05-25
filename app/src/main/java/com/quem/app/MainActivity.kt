@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         val driveAuthorizationLauncher = registerForActivityResult(
             ActivityResultContracts.StartIntentSenderForResult()
         ) { result ->
-            driveAuthorizationCoordinator.dispatchResolutionResult(
+            dependencies.driveConnectionRepository.handleResolutionResult(
                 ActivityResultData(
                     resultCode = result.resultCode,
                     data = result.data
@@ -27,15 +27,13 @@ class MainActivity : ComponentActivity() {
             activity = this,
             resolutionLauncher = driveAuthorizationLauncher
         )
-        val driveConnectionRepository = dependencies.driveConnectionRepository(
-            authorizationCoordinator = driveAuthorizationCoordinator
-        )
+        dependencies.driveConnectionRepository.setAuthorizationCoordinator(driveAuthorizationCoordinator)
 
         setContent {
             QueMTheme {
                 QueMApp(
                     queueRepository = dependencies.queueRepository,
-                    driveConnectionRepository = driveConnectionRepository
+                    driveConnectionRepository = dependencies.driveConnectionRepository
                 )
             }
         }

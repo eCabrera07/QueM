@@ -6,8 +6,6 @@ import com.quem.core.time.SystemClock
 import com.quem.data.local.QueMDatabase
 import com.quem.data.repository.QueueRepository
 import com.quem.data.repository.RoomQueueRepository
-import com.quem.drive.DriveAuthorizationCoordinator
-import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.GoogleDriveConnectionRepository
 import java.util.UUID
 
@@ -24,9 +22,7 @@ class AppDependencies(context: Context) {
         idProvider = { UUID.randomUUID().toString() }
     )
 
-    fun driveConnectionRepository(
-        authorizationCoordinator: DriveAuthorizationCoordinator
-    ): DriveConnectionRepository = GoogleDriveConnectionRepository(authorizationCoordinator)
+    val driveConnectionRepository: GoogleDriveConnectionRepository = GoogleDriveConnectionRepository()
 
     private companion object {
         const val DATABASE_NAME = "quem.db"

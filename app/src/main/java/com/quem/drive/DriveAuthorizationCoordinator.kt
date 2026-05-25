@@ -41,10 +41,7 @@ sealed interface DriveAuthorizationResolutionResult {
 interface DriveAuthorizationCoordinator {
     fun requestAuthorization(onResult: (DriveAuthorizationRequestResult) -> Unit)
 
-    fun launchResolution(
-        request: IntentSenderRequest,
-        onResult: (ActivityResultData) -> Unit
-    )
+    fun launchResolution(request: IntentSenderRequest)
 
     fun parseResolutionResult(result: ActivityResultData): DriveAuthorizationResolutionResult
 }
