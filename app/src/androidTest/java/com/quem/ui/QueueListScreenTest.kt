@@ -3,6 +3,7 @@ package com.quem.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import com.quem.app.QueMApp
 import com.quem.core.model.Attachment
@@ -19,12 +21,18 @@ import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
 import com.quem.data.repository.QueueRepository
+import com.quem.drive.DriveAccount
+import com.quem.drive.DriveConnectionRepository
+import com.quem.drive.DriveConnectionState
+import com.quem.drive.DriveSelection
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -114,11 +122,117 @@ class QueueListScreenTest {
         compose.onNode(hasText("Text") and hasSetTextAction()).performTextInput("Remember this")
         compose.onNodeWithText("Save").performClick()
 
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Note"))
         compose.onNodeWithText("Note").assertIsDisplayed()
 
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Back"))
         compose.onNodeWithText("Back").performClick()
 
         compose.onNodeWithText("3 attachments").assertIsDisplayed()
+    }
+
+    @Test
+    fun connectedDriveFilePickerAddsDriveFileAttachment() {
+        val repository = FakeQueueRepository.withSampleItem()
+        compose.setContent {
+            QueMApp(
+                queueRepository = repository,
+                driveConnectionRepository = FakeDriveConnectionRepository.connected(),
+                onPickDriveFile = {
+                    DriveSelection(
+                        id = "drive-file-id",
+                        name = "signed-contract.pdf",
+                        mimeType = "application/pdf",
+                        isFolder = false
+                    )
+                }
+            )
+        }
+
+        compose.onNodeWithText("Read contract").performClick()
+        compose.onNodeWithText("Drive file").performClick()
+
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("signed-contract.pdf"))
+        compose.onNodeWithText("signed-contract.pdf").assertIsDisplayed()
+    }
+
+    @Test
+    fun connectedDriveFolderPickerAddsDriveFolderAttachment() {
+        val repository = FakeQueueRepository.withSampleItem()
+        compose.setContent {
+            QueMApp(
+                queueRepository = repository,
+                driveConnectionRepository = FakeDriveConnectionRepository.connected(),
+                onPickDriveFolder = {
+                    DriveSelection(
+                        id = "drive-folder-id",
+                        name = "Project folder",
+                        mimeType = null,
+                        isFolder = true
+                    )
+                }
+            )
+        }
+
+        compose.onNodeWithText("Read contract").performClick()
+        compose.onNodeWithText("Drive folder").performClick()
+
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Project folder"))
+        compose.onNodeWithText("Project folder").assertIsDisplayed()
+    }
+
+    @Test
+    fun disconnectedDrivePickerShowsSignInMessageWithoutAddingAttachment() {
+        var pickerCalls = 0
+        val repository = FakeQueueRepository.withSampleItem()
+        compose.setContent {
+            QueMApp(
+                queueRepository = repository,
+                driveConnectionRepository = FakeDriveConnectionRepository.disconnected(),
+                onPickDriveFile = {
+                    pickerCalls += 1
+                    DriveSelection(
+                        id = "drive-file-id",
+                        name = "signed-contract.pdf",
+                        mimeType = "application/pdf",
+                        isFolder = false
+                    )
+                }
+            )
+        }
+
+        compose.onNodeWithText("Read contract").performClick()
+        compose.onNodeWithText("Drive file").performClick()
+
+        compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsDisplayed()
+        compose.onAllNodesWithText("signed-contract.pdf").assertCountEquals(0)
+        assertEquals(0, pickerCalls)
+    }
+}
+
+private class FakeDriveConnectionRepository(
+    initialState: DriveConnectionState
+) : DriveConnectionRepository {
+    private val mutableState = MutableStateFlow(initialState)
+
+    override val state: StateFlow<DriveConnectionState> = mutableState
+
+    override fun requestSignIn() {
+        mutableState.value = DriveConnectionState.Connected(DriveAccount("user@example.com"))
+    }
+
+    override fun disconnect() {
+        mutableState.value = DriveConnectionState.Disconnected
+    }
+
+    companion object {
+        fun connected(): FakeDriveConnectionRepository =
+            FakeDriveConnectionRepository(
+                DriveConnectionState.Connected(DriveAccount("user@example.com"))
+            )
+
+        fun disconnected(): FakeDriveConnectionRepository =
+            FakeDriveConnectionRepository(DriveConnectionState.Disconnected)
     }
 }
 
