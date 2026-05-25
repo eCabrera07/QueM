@@ -2,6 +2,7 @@ package com.quem.data.repository
 
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
+import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
@@ -12,6 +13,7 @@ import com.quem.data.local.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 class RoomQueueRepository(
     private val dao: QueueDao,
@@ -33,7 +35,12 @@ class RoomQueueRepository(
     override fun observeAttachments(queueItemId: String): Flow<List<Attachment>> =
         dao.observeAttachments(queueItemId).map { attachments -> attachments.map { it.toDomain() } }
 
-    override suspend fun createItem(title: String, description: String?): QueueItem {
+    override suspend fun createItem(
+        title: String,
+        description: String?,
+        priority: Priority?,
+        dueDate: LocalDate?
+    ): QueueItem {
         val now = clock.now()
         val item = QueueItem(
             id = idProvider(),
@@ -41,8 +48,8 @@ class RoomQueueRepository(
             title = title.trim(),
             description = description?.trim()?.takeIf { it.isNotEmpty() },
             status = QueueStatus.QUEUED,
-            priority = null,
-            dueDate = null,
+            priority = priority,
+            dueDate = dueDate,
             tags = emptyList(),
             createdAt = now,
             updatedAt = now,
