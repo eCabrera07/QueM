@@ -9,7 +9,17 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.quem.app.QueMApp
+import com.quem.core.model.Attachment
+import com.quem.core.model.AttachmentType
+import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
+import com.quem.core.model.SyncState
+import com.quem.data.repository.QueueRepository
+import java.time.Instant
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import org.junit.Rule
 import org.junit.Test
 
@@ -38,8 +48,9 @@ class QueueListScreenTest {
     @Test
     fun selectedStatusSurvivesSavedStateRestore() {
         val restorationTester = StateRestorationTester(compose)
+        val repository = FakeQueueRepository.withSampleItem()
         restorationTester.setContent {
-            QueMApp()
+            QueMApp(queueRepository = repository)
         }
 
         compose.onNodeWithText("Dismissed").performClick()
@@ -50,8 +61,9 @@ class QueueListScreenTest {
 
     @Test
     fun dismissedSampleItemMovesOutOfQueuedList() {
+        val repository = FakeQueueRepository.withSampleItem()
         compose.setContent {
-            QueMApp()
+            QueMApp(queueRepository = repository)
         }
 
         compose.onNodeWithText("Read contract").performClick()
@@ -64,3 +76,175 @@ class QueueListScreenTest {
         compose.onAllNodesWithText("Read contract").assertCountEquals(0)
     }
 }
+
+private class FakeQueueRepository private constructor(
+    initialItems: List<QueueItem>,
+    initialAttachments: List<Attachment>
+) : QueueRepository {
+    private val items = MutableStateFlow(initialItems)
+    private val attachments = MutableStateFlow(initialAttachments)
+    private var nextItemId = 1
+    private var nextAttachmentId = 1
+
+    override fun observeItems(status: QueueStatus): Flow<List<QueueItem>> =
+        items.map { queueItems -> queueItems.filter { it.status == status } }
+
+    override fun searchArchive(query: String): Flow<List<QueueItem>> =
+        flowOf(emptyList())
+
+    override fun observeItem(id: String): Flow<QueueItem?> =
+        items.map { queueItems -> queueItems.singleOrNull { it.id == id } }
+
+    override suspend fun createItem(title: String, description: String?): QueueItem {
+        val item = queueItem(
+            id = "item-${nextItemId++}",
+            title = title,
+            description = description,
+            status = QueueStatus.QUEUED
+        )
+        items.value = items.value + item
+        return item
+    }
+
+    override suspend fun changeStatus(id: String, status: QueueStatus): QueueItem? {
+        var updatedItem: QueueItem? = null
+        items.value = items.value.map { item ->
+            if (item.id == id) {
+                item.copy(status = status).also { updatedItem = it }
+            } else {
+                item
+            }
+        }
+        return updatedItem
+    }
+
+    override fun observeAttachments(queueItemId: String): Flow<List<Attachment>> =
+        attachments.map { allAttachments ->
+            allAttachments.filter { it.queueItemId == queueItemId }
+        }
+
+    override suspend fun addTextAttachment(queueItemId: String, title: String, text: String) {
+        addAttachment(
+            queueItemId = queueItemId,
+            title = title,
+            type = AttachmentType.TEXT,
+            textContent = text,
+            url = null,
+            driveFileId = null,
+            mimeType = null
+        )
+    }
+
+    override suspend fun addLinkAttachment(queueItemId: String, title: String, url: String) {
+        addAttachment(
+            queueItemId = queueItemId,
+            title = title,
+            type = AttachmentType.LINK,
+            textContent = null,
+            url = url,
+            driveFileId = null,
+            mimeType = null
+        )
+    }
+
+    override suspend fun addDriveAttachment(
+        queueItemId: String,
+        title: String,
+        driveFileId: String,
+        mimeType: String?,
+        isFolder: Boolean
+    ) {
+        addAttachment(
+            queueItemId = queueItemId,
+            title = title,
+            type = if (isFolder) AttachmentType.DRIVE_FOLDER else AttachmentType.DRIVE_FILE,
+            textContent = null,
+            url = null,
+            driveFileId = driveFileId,
+            mimeType = mimeType
+        )
+    }
+
+    private fun addAttachment(
+        queueItemId: String,
+        title: String,
+        type: AttachmentType,
+        textContent: String?,
+        url: String?,
+        driveFileId: String?,
+        mimeType: String?
+    ) {
+        attachments.value = attachments.value + Attachment(
+            id = "attachment-${nextAttachmentId++}",
+            queueItemId = queueItemId,
+            type = type,
+            displayName = title,
+            textContent = textContent,
+            url = url,
+            driveFileId = driveFileId,
+            mimeType = mimeType,
+            createdAt = FIXED_INSTANT,
+            updatedAt = FIXED_INSTANT,
+            syncState = SyncState.PENDING_SYNC
+        )
+    }
+
+    companion object {
+        fun withSampleItem(): FakeQueueRepository {
+            val item = queueItem(
+                id = "sample-1",
+                title = "Read contract",
+                description = "Review renewal terms before the next team sync.",
+                status = QueueStatus.QUEUED
+            )
+            return FakeQueueRepository(
+                initialItems = listOf(item),
+                initialAttachments = listOf(
+                    attachment(id = "attachment-1", queueItemId = item.id, displayName = "contract.pdf"),
+                    attachment(id = "attachment-2", queueItemId = item.id, displayName = "pricing-sheet.xlsx")
+                )
+            )
+        }
+    }
+}
+
+private val FIXED_INSTANT: Instant = Instant.parse("2026-05-23T12:00:00Z")
+
+private fun queueItem(
+    id: String,
+    title: String,
+    description: String?,
+    status: QueueStatus
+) = QueueItem(
+    id = id,
+    driveId = null,
+    title = title,
+    description = description,
+    status = status,
+    priority = null,
+    dueDate = null,
+    tags = emptyList(),
+    createdAt = FIXED_INSTANT,
+    updatedAt = FIXED_INSTANT,
+    completedAt = null,
+    dismissedAt = null,
+    syncState = SyncState.PENDING_SYNC
+)
+
+private fun attachment(
+    id: String,
+    queueItemId: String,
+    displayName: String
+) = Attachment(
+    id = id,
+    queueItemId = queueItemId,
+    type = AttachmentType.DRIVE_FILE,
+    displayName = displayName,
+    textContent = null,
+    url = null,
+    driveFileId = null,
+    mimeType = null,
+    createdAt = FIXED_INSTANT,
+    updatedAt = FIXED_INSTANT,
+    syncState = SyncState.PENDING_SYNC
+)
