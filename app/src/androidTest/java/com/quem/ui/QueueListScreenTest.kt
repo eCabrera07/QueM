@@ -3,6 +3,8 @@ package com.quem.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.onAllNodesWithText
@@ -97,6 +99,26 @@ class QueueListScreenTest {
         compose.onNodeWithText("Read contract").assertIsDisplayed()
         compose.onNodeWithText("HIGH").assertIsDisplayed()
         compose.onNodeWithText("2026-05-30").assertIsDisplayed()
+    }
+
+    @Test
+    fun addingTextAttachmentFromDetailUpdatesDetailAndListCount() {
+        val repository = FakeQueueRepository.withSampleItem()
+        compose.setContent {
+            QueMApp(queueRepository = repository)
+        }
+
+        compose.onNodeWithText("Read contract").performClick()
+        compose.onNodeWithText("Text").performClick()
+        compose.onNodeWithText("Attachment title").performTextInput("Note")
+        compose.onNode(hasText("Text") and hasSetTextAction()).performTextInput("Remember this")
+        compose.onNodeWithText("Save").performClick()
+
+        compose.onNodeWithText("Note").assertIsDisplayed()
+
+        compose.onNodeWithText("Back").performClick()
+
+        compose.onNodeWithText("3 attachments").assertIsDisplayed()
     }
 }
 

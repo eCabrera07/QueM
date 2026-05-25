@@ -169,6 +169,62 @@ class QueueViewModelTest {
     }
 
     @Test
+    fun addTextAttachmentAddsToSelectedItem() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = null,
+            dueDate = null
+        )
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        viewModel.addTextAttachment("Note", "Remember this")
+        advanceUntilIdle()
+
+        assertEquals(listOf("Note"), viewModel.selectedItem.value?.attachments)
+    }
+
+    @Test
+    fun addLinkAttachmentAddsToSelectedItem() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = null,
+            dueDate = null
+        )
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        viewModel.addLinkAttachment("Reference", "https://example.com")
+        advanceUntilIdle()
+
+        assertEquals(listOf("Reference"), viewModel.selectedItem.value?.attachments)
+    }
+
+    @Test
+    fun addAttachmentWithoutSelectedItemDoesNothing() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = null,
+            dueDate = null
+        )
+        val viewModel = QueueViewModel(repository)
+
+        viewModel.addTextAttachment("Note", "Remember this")
+        viewModel.addLinkAttachment("Reference", "https://example.com")
+        advanceUntilIdle()
+
+        assertEquals(emptyList<String>(), repository.attachmentDisplayNames())
+    }
+
+    @Test
     fun navigationStateRestoresFromSavedStateHandle() = runTest {
         val repository = FakeQueueRepository()
         repository.createItem(
@@ -266,6 +322,9 @@ private class FakeQueueRepository : QueueRepository {
 
     override fun observeAttachments(queueItemId: String): Flow<List<Attachment>> =
         attachments.map { attachments -> attachments.filter { it.queueItemId == queueItemId } }
+
+    fun attachmentDisplayNames(): List<String> =
+        attachments.value.map { it.displayName }
 
     override suspend fun addTextAttachment(queueItemId: String, title: String, text: String) {
         addAttachment(

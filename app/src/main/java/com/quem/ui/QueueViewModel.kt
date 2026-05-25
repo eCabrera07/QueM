@@ -129,6 +129,28 @@ class QueueViewModel(
         moveSelectedItemTo(QueueStatus.DISMISSED)
     }
 
+    fun addTextAttachment(title: String, text: String) {
+        val id = selectedItemId.value ?: return
+        viewModelScope.launch {
+            repository.addTextAttachment(
+                queueItemId = id,
+                title = title,
+                text = text
+            )
+        }
+    }
+
+    fun addLinkAttachment(title: String, url: String) {
+        val id = selectedItemId.value ?: return
+        viewModelScope.launch {
+            repository.addLinkAttachment(
+                queueItemId = id,
+                title = title,
+                url = url
+            )
+        }
+    }
+
     fun backToList() {
         savedStateHandle[KEY_SELECTED_ITEM_ID] = null
     }

@@ -1,9 +1,15 @@
 package com.quem.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -58,5 +64,95 @@ class ItemDetailScreenTest {
         assertTrue(dismissed)
         assertTrue(done)
         assertTrue(backed)
+    }
+
+    @Test
+    fun textAttachmentFormSavesEnteredValues() {
+        var savedTitle: String? = null
+        var savedText: String? = null
+
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList(),
+                onDismiss = {},
+                onDone = {},
+                onBack = {},
+                onAddTextAttachment = { title, text ->
+                    savedTitle = title
+                    savedText = text
+                }
+            )
+        }
+
+        compose.onNodeWithText("Text").performClick()
+        compose.onNodeWithText("Attachment title").performTextInput("Note")
+        compose.onNode(hasText("Text") and hasSetTextAction()).performTextInput("Remember this")
+        compose.onNodeWithText("Save").performClick()
+
+        assertEquals("Note", savedTitle)
+        assertEquals("Remember this", savedText)
+    }
+
+    @Test
+    fun linkAttachmentFormSavesEnteredValues() {
+        var savedTitle: String? = null
+        var savedUrl: String? = null
+
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList(),
+                onDismiss = {},
+                onDone = {},
+                onBack = {},
+                onAddLinkAttachment = { title, url ->
+                    savedTitle = title
+                    savedUrl = url
+                }
+            )
+        }
+
+        compose.onNodeWithText("Link").performClick()
+        compose.onNodeWithText("Attachment title").performTextInput("Reference")
+        compose.onNodeWithText("URL").performTextInput("https://example.com")
+        compose.onNodeWithText("Save").performClick()
+
+        assertEquals("Reference", savedTitle)
+        assertEquals("https://example.com", savedUrl)
+    }
+
+    @Test
+    fun attachmentFormCancelDoesNotSaveValues() {
+        var saved = false
+
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList(),
+                onDismiss = {},
+                onDone = {},
+                onBack = {},
+                onAddTextAttachment = { _, _ -> saved = true }
+            )
+        }
+
+        compose.onNodeWithText("Text").performClick()
+        compose.onNodeWithText("Attachment title").performTextInput("Note")
+        compose.onNode(hasText("Text") and hasSetTextAction()).performTextInput("Remember this")
+        compose.onNodeWithText("Cancel").performClick()
+
+        assertFalse(saved)
+        compose.onNodeWithText("Attachment title").assertIsNotDisplayed()
+        compose.onNodeWithText("Save").assertIsNotDisplayed()
     }
 }

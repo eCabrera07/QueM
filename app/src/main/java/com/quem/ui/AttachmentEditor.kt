@@ -16,7 +16,8 @@ fun AttachmentEditor(
     onAddLink: () -> Unit,
     onAttachDriveFile: () -> Unit,
     onAttachDriveFolder: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showDriveActions: Boolean = true
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -24,8 +25,10 @@ fun AttachmentEditor(
     ) {
         AttachmentButton(text = "Text", onClick = onAddText)
         AttachmentButton(text = "Link", onClick = onAddLink)
-        AttachmentButton(text = "Drive file", onClick = onAttachDriveFile)
-        AttachmentButton(text = "Drive folder", onClick = onAttachDriveFolder)
+        if (showDriveActions) {
+            AttachmentButton(text = "Drive file", onClick = onAttachDriveFile)
+            AttachmentButton(text = "Drive folder", onClick = onAttachDriveFolder)
+        }
     }
 }
 

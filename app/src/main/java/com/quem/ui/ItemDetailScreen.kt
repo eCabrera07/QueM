@@ -16,9 +16,14 @@ import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,8 +38,26 @@ fun ItemDetailScreen(
     history: List<String>,
     onDismiss: () -> Unit,
     onDone: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onAddTextAttachment: (title: String, text: String) -> Unit = { _, _ -> },
+    onAddLinkAttachment: (title: String, url: String) -> Unit = { _, _ -> }
 ) {
+    var attachmentFormType by rememberSaveable { mutableStateOf<String?>(null) }
+    var attachmentTitle by rememberSaveable { mutableStateOf("") }
+    var attachmentValue by rememberSaveable { mutableStateOf("") }
+
+    fun openAttachmentForm(type: String) {
+        attachmentTitle = ""
+        attachmentValue = ""
+        attachmentFormType = type
+    }
+
+    fun closeAttachmentForm() {
+        attachmentTitle = ""
+        attachmentValue = ""
+        attachmentFormType = null
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -95,6 +118,35 @@ fun ItemDetailScreen(
         item {
             DetailSectionHeader("Attachments")
         }
+        item {
+            if (attachmentFormType == null) {
+                AttachmentEditor(
+                    onAddText = { openAttachmentForm(ATTACHMENT_FORM_TEXT) },
+                    onAddLink = { openAttachmentForm(ATTACHMENT_FORM_LINK) },
+                    onAttachDriveFile = {},
+                    onAttachDriveFolder = {},
+                    showDriveActions = false
+                )
+            } else {
+                AttachmentForm(
+                    type = attachmentFormType,
+                    title = attachmentTitle,
+                    value = attachmentValue,
+                    onTitleChange = { attachmentTitle = it },
+                    onValueChange = { attachmentValue = it },
+                    onSave = {
+                        val trimmedTitle = attachmentTitle.trim()
+                        val trimmedValue = attachmentValue.trim()
+                        when (attachmentFormType) {
+                            ATTACHMENT_FORM_TEXT -> onAddTextAttachment(trimmedTitle, trimmedValue)
+                            ATTACHMENT_FORM_LINK -> onAddLinkAttachment(trimmedTitle, trimmedValue)
+                        }
+                        closeAttachmentForm()
+                    },
+                    onCancel = { closeAttachmentForm() }
+                )
+            }
+        }
         if (attachments.isEmpty()) {
             item {
                 DetailEmptyText("No attachments")
@@ -120,6 +172,56 @@ fun ItemDetailScreen(
 
         item {
             Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+private const val ATTACHMENT_FORM_TEXT = "text"
+private const val ATTACHMENT_FORM_LINK = "link"
+
+@Composable
+private fun AttachmentForm(
+    type: String?,
+    title: String,
+    value: String,
+    onTitleChange: (String) -> Unit,
+    onValueChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(
+            value = title,
+            onValueChange = onTitleChange,
+            label = { Text("Attachment title") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(if (type == ATTACHMENT_FORM_LINK) "URL" else "Text") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(
+                onClick = onSave,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Save", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Cancel", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }

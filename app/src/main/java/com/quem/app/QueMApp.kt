@@ -48,6 +48,8 @@ fun QueMApp(queueRepository: QueueRepository) {
             dueDateLabel = item.dueDateLabel,
             attachments = item.attachments,
             history = item.history,
+            onAddTextAttachment = viewModel::addTextAttachment,
+            onAddLinkAttachment = viewModel::addLinkAttachment,
             onDismiss = viewModel::dismissSelectedItem,
             onDone = viewModel::doneSelectedItem,
             onBack = viewModel::backToList
