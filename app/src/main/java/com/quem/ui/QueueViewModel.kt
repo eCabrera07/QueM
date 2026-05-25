@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.data.repository.QueueRepository
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 data class QueueItemDetailUi(
     val id: String,
@@ -100,9 +102,19 @@ class QueueViewModel(
         savedStateHandle[KEY_IS_CREATING_ITEM] = false
     }
 
-    fun createItem(title: String, description: String?) {
+    fun createItem(
+        title: String,
+        description: String?,
+        priority: String? = null,
+        dueDate: String? = null
+    ) {
         viewModelScope.launch {
-            val created = repository.createItem(title = title, description = description)
+            val created = repository.createItem(
+                title = title,
+                description = description,
+                priority = priority.toPriorityOrNull(),
+                dueDate = dueDate.toLocalDateOrNull()
+            )
             savedStateHandle[KEY_SELECTED_STATUS] = QueueStatus.QUEUED
             savedStateHandle[KEY_SELECTED_ITEM_ID] = created.id
             savedStateHandle[KEY_IS_CREATING_ITEM] = false
@@ -178,3 +190,13 @@ private fun QueueItem.toDetailUi(attachments: List<String>) = QueueItemDetailUi(
 
 private fun Int.toAttachmentSummary(): String =
     if (this == 1) "1 attachment" else "$this attachments"
+
+private fun String?.toPriorityOrNull(): Priority? {
+    val normalized = this?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    return Priority.entries.firstOrNull { it.name.equals(normalized, ignoreCase = true) }
+}
+
+private fun String?.toLocalDateOrNull(): LocalDate? {
+    val normalized = this?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    return runCatching { LocalDate.parse(normalized) }.getOrNull()
+}
