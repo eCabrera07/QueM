@@ -33,8 +33,18 @@ class RoomQueueRepositoryTest {
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
             idProvider = { ids.removeFirst() }
         )
-        val queued = repository.createItem(title = "Read contract", description = null)
-        repository.createItem(title = "Draft summary", description = null)
+        val queued = repository.createItem(
+            title = "Read contract",
+            description = null,
+            priority = null,
+            dueDate = null
+        )
+        repository.createItem(
+            title = "Draft summary",
+            description = null,
+            priority = null,
+            dueDate = null
+        )
         repository.changeStatus("item-2", QueueStatus.DONE)
 
         val items = repository.observeItems(QueueStatus.QUEUED).first()
@@ -50,7 +60,12 @@ class RoomQueueRepositoryTest {
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
             idProvider = { "item-1" }
         )
-        val created = repository.createItem(title = "Read contract", description = null)
+        val created = repository.createItem(
+            title = "Read contract",
+            description = null,
+            priority = null,
+            dueDate = null
+        )
 
         val item = repository.observeItem("item-1").first()
 
@@ -202,12 +217,38 @@ class RoomQueueRepositoryTest {
             idProvider = { "item-1" }
         )
 
-        val created = repository.createItem(title = "Read contract", description = null)
+        val created = repository.createItem(
+            title = "Read contract",
+            description = null,
+            priority = null,
+            dueDate = null
+        )
 
         assertEquals("item-1", created.id)
         assertEquals("Read contract", created.title)
         assertEquals(QueueStatus.QUEUED, created.status)
         assertEquals(SyncState.PENDING_SYNC, created.syncState)
+        assertEquals(created, dao.items.single())
+    }
+
+    @Test
+    fun createItemPersistsPriorityAndDueDate() = runTest {
+        val dao = FakeQueueDao()
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { "item-1" }
+        )
+
+        val created = repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = Priority.HIGH,
+            dueDate = LocalDate.parse("2026-05-30")
+        )
+
+        assertEquals(Priority.HIGH, created.priority)
+        assertEquals(LocalDate.parse("2026-05-30"), created.dueDate)
         assertEquals(created, dao.items.single())
     }
 
@@ -220,7 +261,12 @@ class RoomQueueRepositoryTest {
             idProvider = { "item-1" }
         )
 
-        val created = repository.createItem(title = "  Read contract  ", description = "   ")
+        val created = repository.createItem(
+            title = "  Read contract  ",
+            description = "   ",
+            priority = null,
+            dueDate = null
+        )
 
         assertEquals("Read contract", created.title)
         assertNull(created.description)
@@ -235,7 +281,12 @@ class RoomQueueRepositoryTest {
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
             idProvider = { "item-1" }
         )
-        repository.createItem(title = "Read contract", description = "Legal")
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal",
+            priority = null,
+            dueDate = null
+        )
 
         val changed = repository.changeStatus("item-1", QueueStatus.DONE)
 

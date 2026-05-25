@@ -22,8 +22,13 @@ fun QueMApp(queueRepository: QueueRepository) {
 
     if (isCreatingItem) {
         CreateItemScreen(
-            onSave = { title, description, _, _ ->
-                viewModel.createItem(title = title, description = description)
+            onSave = { title, description, priority, dueDate ->
+                viewModel.createItem(
+                    title = title,
+                    description = description,
+                    priority = priority,
+                    dueDate = dueDate
+                )
             },
             onCancel = viewModel::cancelCreate
         )

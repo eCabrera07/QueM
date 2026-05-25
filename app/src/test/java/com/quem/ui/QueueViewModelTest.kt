@@ -3,6 +3,7 @@ package com.quem.ui
 import androidx.lifecycle.SavedStateHandle
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
+import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
@@ -31,6 +32,7 @@ import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import java.time.Instant
+import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QueueViewModelTest {
@@ -54,9 +56,52 @@ class QueueViewModelTest {
     }
 
     @Test
+    fun createItemParsesPriorityAndDueDateMetadata() = runTest {
+        val repository = FakeQueueRepository()
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = "high",
+            dueDate = "2026-05-30"
+        )
+        advanceUntilIdle()
+
+        val created = repository.items.value.single()
+        assertEquals(Priority.HIGH, created.priority)
+        assertEquals(LocalDate.parse("2026-05-30"), created.dueDate)
+        assertEquals("2026-05-30", viewModel.selectedItem.value?.dueDateLabel)
+    }
+
+    @Test
+    fun createItemIgnoresInvalidPriorityAndDueDateMetadata() = runTest {
+        val repository = FakeQueueRepository()
+        val viewModel = QueueViewModel(repository)
+
+        viewModel.createItem(
+            title = "Read contract",
+            description = null,
+            priority = "urgent",
+            dueDate = "tomorrow"
+        )
+        advanceUntilIdle()
+
+        val created = repository.items.value.single()
+        assertNull(created.priority)
+        assertNull(created.dueDate)
+    }
+
+    @Test
     fun dismissSelectedItemMovesItemToDismissedAndReturnsToList() = runTest {
         val repository = FakeQueueRepository()
-        repository.createItem("Read contract", "Legal notes")
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = null,
+            dueDate = null
+        )
         val viewModel = QueueViewModel(repository)
         collectSelectedItem(viewModel)
 
@@ -72,10 +117,20 @@ class QueueViewModelTest {
     @Test
     fun itemsEmitsTheSelectedStatusList() = runTest {
         val repository = FakeQueueRepository()
-        repository.createItem("Queued item", null)
+        repository.createItem(
+            title = "Queued item",
+            description = null,
+            priority = null,
+            dueDate = null
+        )
         repository.addTextAttachment("item-1", "Notes", "Remember this")
         repository.addLinkAttachment("item-1", "Spec", "https://example.com/spec")
-        repository.createItem("Done item", null)
+        repository.createItem(
+            title = "Done item",
+            description = null,
+            priority = null,
+            dueDate = null
+        )
         repository.addDriveAttachment("item-2", "Evidence", "drive-file-1", "application/pdf", isFolder = false)
         repository.changeStatus("item-2", QueueStatus.DONE)
         val viewModel = QueueViewModel(repository)
@@ -95,7 +150,12 @@ class QueueViewModelTest {
     @Test
     fun selectedItemIncludesAttachmentDisplayNames() = runTest {
         val repository = FakeQueueRepository()
-        repository.createItem("Read contract", "Legal notes")
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = null,
+            dueDate = null
+        )
         repository.addTextAttachment("item-1", "Notes", "Remember this")
         repository.addLinkAttachment("item-1", "Spec", "https://example.com/spec")
         val viewModel = QueueViewModel(repository)
@@ -111,7 +171,12 @@ class QueueViewModelTest {
     @Test
     fun navigationStateRestoresFromSavedStateHandle() = runTest {
         val repository = FakeQueueRepository()
-        repository.createItem("Read contract", "Legal notes")
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = null,
+            dueDate = null
+        )
         val savedStateHandle = SavedStateHandle(
             mapOf(
                 "selectedStatus" to QueueStatus.DISMISSED,
@@ -169,12 +234,19 @@ private class FakeQueueRepository : QueueRepository {
     override fun observeItem(id: String): Flow<QueueItem?> =
         items.map { queueItems -> queueItems.singleOrNull { it.id == id } }
 
-    override suspend fun createItem(title: String, description: String?): QueueItem {
+    override suspend fun createItem(
+        title: String,
+        description: String?,
+        priority: Priority?,
+        dueDate: LocalDate?
+    ): QueueItem {
         val item = queueItem(
             id = "item-${nextId++}",
             title = title,
             description = description,
-            status = QueueStatus.QUEUED
+            status = QueueStatus.QUEUED,
+            priority = priority,
+            dueDate = dueDate
         )
         items.value = items.value + item
         return item
@@ -266,15 +338,17 @@ private fun queueItem(
     id: String,
     title: String,
     description: String?,
-    status: QueueStatus
+    status: QueueStatus,
+    priority: Priority? = null,
+    dueDate: LocalDate? = null
 ) = QueueItem(
     id = id,
     driveId = null,
     title = title,
     description = description,
     status = status,
-    priority = null,
-    dueDate = null,
+    priority = priority,
+    dueDate = dueDate,
     tags = emptyList(),
     createdAt = Instant.parse("2026-05-23T12:00:00Z"),
     updatedAt = Instant.parse("2026-05-23T12:00:00Z"),

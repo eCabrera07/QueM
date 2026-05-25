@@ -1,9 +1,11 @@
 package com.quem.data.repository
 
 import com.quem.core.model.Attachment
+import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 interface QueueRepository {
     fun observeItems(status: QueueStatus): Flow<List<QueueItem>>
@@ -12,7 +14,12 @@ interface QueueRepository {
 
     fun observeItem(id: String): Flow<QueueItem?>
 
-    suspend fun createItem(title: String, description: String?): QueueItem
+    suspend fun createItem(
+        title: String,
+        description: String?,
+        priority: Priority?,
+        dueDate: LocalDate?
+    ): QueueItem
 
     suspend fun changeStatus(id: String, status: QueueStatus): QueueItem?
 
