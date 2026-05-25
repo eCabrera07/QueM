@@ -91,6 +91,23 @@ class QueueListScreenTest {
     }
 
     @Test
+    fun settingsShowsDriveAuthorizationError() {
+        val driveRepository = FakeDriveConnectionRepository.disconnected()
+        val repository = FakeQueueRepository.withSampleItem()
+        compose.setContent {
+            QueMApp(
+                queueRepository = repository,
+                driveConnectionRepository = driveRepository
+            )
+        }
+
+        compose.onNodeWithText("Settings").performClick()
+        driveRepository.fail("Google Drive authorization unavailable")
+
+        compose.onNodeWithText("Google Drive authorization unavailable").assertIsDisplayed()
+    }
+
+    @Test
     fun dismissedSampleItemMovesOutOfQueuedList() {
         val repository = FakeQueueRepository.withSampleItem()
         compose.setContent {
@@ -241,6 +258,10 @@ private class FakeDriveConnectionRepository(
 
     override fun disconnect() {
         mutableState.value = DriveConnectionState.Disconnected
+    }
+
+    fun fail(message: String) {
+        mutableState.value = DriveConnectionState.Error(message)
     }
 
     companion object {
