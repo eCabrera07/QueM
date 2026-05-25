@@ -8,14 +8,17 @@ import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import com.quem.app.QueMApp
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
+import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
 import com.quem.data.repository.QueueRepository
 import java.time.Instant
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -75,6 +78,26 @@ class QueueListScreenTest {
         compose.onNodeWithText("Queued").performClick()
         compose.onAllNodesWithText("Read contract").assertCountEquals(0)
     }
+
+    @Test
+    fun createItemForwardsPriorityAndDueDateToList() {
+        val repository = FakeQueueRepository.empty()
+        compose.setContent {
+            QueMApp(queueRepository = repository)
+        }
+
+        compose.onNodeWithText("New").performClick()
+        compose.onNodeWithText("Title").performTextInput("Read contract")
+        compose.onNodeWithText("Priority").performTextInput("high")
+        compose.onNodeWithText("Due date optional").performTextInput("2026-05-30")
+        compose.onNodeWithText("Save").performClick()
+
+        compose.onNodeWithText("Back").performClick()
+
+        compose.onNodeWithText("Read contract").assertIsDisplayed()
+        compose.onNodeWithText("HIGH").assertIsDisplayed()
+        compose.onNodeWithText("2026-05-30").assertIsDisplayed()
+    }
 }
 
 private class FakeQueueRepository private constructor(
@@ -95,12 +118,19 @@ private class FakeQueueRepository private constructor(
     override fun observeItem(id: String): Flow<QueueItem?> =
         items.map { queueItems -> queueItems.singleOrNull { it.id == id } }
 
-    override suspend fun createItem(title: String, description: String?): QueueItem {
+    override suspend fun createItem(
+        title: String,
+        description: String?,
+        priority: Priority?,
+        dueDate: LocalDate?
+    ): QueueItem {
         val item = queueItem(
             id = "item-${nextItemId++}",
             title = title,
             description = description,
-            status = QueueStatus.QUEUED
+            status = QueueStatus.QUEUED,
+            priority = priority,
+            dueDate = dueDate
         )
         items.value = items.value + item
         return item
@@ -190,6 +220,12 @@ private class FakeQueueRepository private constructor(
     }
 
     companion object {
+        fun empty(): FakeQueueRepository =
+            FakeQueueRepository(
+                initialItems = emptyList(),
+                initialAttachments = emptyList()
+            )
+
         fun withSampleItem(): FakeQueueRepository {
             val item = queueItem(
                 id = "sample-1",
@@ -214,15 +250,17 @@ private fun queueItem(
     id: String,
     title: String,
     description: String?,
-    status: QueueStatus
+    status: QueueStatus,
+    priority: Priority? = null,
+    dueDate: LocalDate? = null
 ) = QueueItem(
     id = id,
     driveId = null,
     title = title,
     description = description,
     status = status,
-    priority = null,
-    dueDate = null,
+    priority = priority,
+    dueDate = dueDate,
     tags = emptyList(),
     createdAt = FIXED_INSTANT,
     updatedAt = FIXED_INSTANT,
