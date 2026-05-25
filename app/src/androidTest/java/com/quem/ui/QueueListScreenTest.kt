@@ -73,6 +73,24 @@ class QueueListScreenTest {
     }
 
     @Test
+    fun settingsSignInUsesDriveConnectionBoundary() {
+        val repository = FakeQueueRepository.withSampleItem()
+        compose.setContent {
+            QueMApp(
+                queueRepository = repository,
+                driveConnectionRepository = FakeDriveConnectionRepository.disconnected()
+            )
+        }
+
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithText("Not signed in").assertIsDisplayed()
+        compose.onNodeWithText("Sign in").performClick()
+
+        compose.onNodeWithText("user@example.com").assertIsDisplayed()
+        compose.onNodeWithText("Drive connected").assertIsDisplayed()
+    }
+
+    @Test
     fun dismissedSampleItemMovesOutOfQueuedList() {
         val repository = FakeQueueRepository.withSampleItem()
         compose.setContent {

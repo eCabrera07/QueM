@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -50,6 +51,12 @@ fun ItemDetailScreen(
     var attachmentTitle by rememberSaveable { mutableStateOf("") }
     var attachmentValue by rememberSaveable { mutableStateOf("") }
     var driveMessage by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(driveActionsEnabled) {
+        if (driveActionsEnabled) {
+            driveMessage = null
+        }
+    }
 
     fun openAttachmentForm(type: String) {
         driveMessage = null

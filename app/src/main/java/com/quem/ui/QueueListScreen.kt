@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,7 +39,8 @@ fun QueueListScreen(
     items: List<QueueListItemUi>,
     onStatusSelected: (QueueStatus) -> Unit,
     onItemSelected: (String) -> Unit,
-    onCreateItem: () -> Unit
+    onCreateItem: () -> Unit,
+    onOpenSettings: () -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -53,8 +55,16 @@ fun QueueListScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.SemiBold
             )
-            Button(onClick = onCreateItem) {
-                Text("New")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(onClick = onOpenSettings) {
+                    Text("Settings")
+                }
+                Button(onClick = onCreateItem) {
+                    Text("New")
+                }
             }
         }
 

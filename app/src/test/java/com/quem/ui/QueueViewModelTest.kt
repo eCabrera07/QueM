@@ -302,6 +302,29 @@ class QueueViewModelTest {
     }
 
     @Test
+    fun requestDriveSignInAndDisconnectDelegateToDriveConnectionRepository() = runTest {
+        val driveConnectionRepository = DisconnectedDriveConnectionRepository()
+        val viewModel = QueueViewModel(
+            repository = FakeQueueRepository(),
+            driveConnectionRepository = driveConnectionRepository
+        )
+
+        viewModel.requestDriveSignIn()
+
+        assertEquals(
+            driveConnectionRepository.state.value,
+            viewModel.driveConnectionState.value
+        )
+
+        viewModel.disconnectDrive()
+
+        assertEquals(
+            driveConnectionRepository.state.value,
+            viewModel.driveConnectionState.value
+        )
+    }
+
+    @Test
     fun navigationStateRestoresFromSavedStateHandle() = runTest {
         val repository = FakeQueueRepository()
         repository.createItem(

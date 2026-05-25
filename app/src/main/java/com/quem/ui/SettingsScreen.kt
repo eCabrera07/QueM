@@ -22,7 +22,8 @@ fun SettingsScreen(
     syncStatus: String,
     onManualSync: () -> Unit,
     onSignIn: () -> Unit = {},
-    onDisconnect: () -> Unit
+    onDisconnect: () -> Unit,
+    onBack: (() -> Unit)? = null
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -30,12 +31,22 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Text(
-                text = "Settings",
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold
-            )
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                onBack?.let { back ->
+                    OutlinedButton(onClick = back) {
+                        Text("Back", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                Text(
+                    text = "Settings",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         item {

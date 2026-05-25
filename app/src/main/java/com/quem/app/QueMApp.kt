@@ -13,6 +13,7 @@ import com.quem.ui.CreateItemScreen
 import com.quem.ui.ItemDetailScreen
 import com.quem.ui.QueueListScreen
 import com.quem.ui.QueueViewModel
+import com.quem.ui.SettingsScreen
 
 @Composable
 fun QueMApp(
@@ -29,11 +30,21 @@ fun QueMApp(
     )
     val selectedStatus by viewModel.selectedStatus.collectAsStateWithLifecycle()
     val isCreatingItem by viewModel.isCreatingItem.collectAsStateWithLifecycle()
+    val isShowingSettings by viewModel.isShowingSettings.collectAsStateWithLifecycle()
     val items by viewModel.items.collectAsStateWithLifecycle()
     val selectedItem by viewModel.selectedItem.collectAsStateWithLifecycle()
     val driveConnectionState by viewModel.driveConnectionState.collectAsStateWithLifecycle()
 
-    if (isCreatingItem) {
+    if (isShowingSettings) {
+        SettingsScreen(
+            accountEmail = driveConnectionState.accountEmail(),
+            syncStatus = driveConnectionState.syncStatusLabel(),
+            onManualSync = {},
+            onSignIn = viewModel::requestDriveSignIn,
+            onDisconnect = viewModel::disconnectDrive,
+            onBack = viewModel::closeSettings
+        )
+    } else if (isCreatingItem) {
         CreateItemScreen(
             onSave = { title, description, priority, dueDate ->
                 viewModel.createItem(
@@ -51,7 +62,8 @@ fun QueMApp(
             items = items,
             onStatusSelected = viewModel::selectStatus,
             onItemSelected = viewModel::selectItem,
-            onCreateItem = viewModel::startCreate
+            onCreateItem = viewModel::startCreate,
+            onOpenSettings = viewModel::showSettings
         )
     } else {
         val item = selectedItem ?: return
@@ -90,3 +102,17 @@ fun QueMApp(
         )
     }
 }
+
+private fun DriveConnectionState.accountEmail(): String? =
+    when (this) {
+        is DriveConnectionState.Connected -> account.email
+        DriveConnectionState.Disconnected,
+        is DriveConnectionState.Error -> null
+    }
+
+private fun DriveConnectionState.syncStatusLabel(): String =
+    when (this) {
+        is DriveConnectionState.Connected -> "Drive connected"
+        DriveConnectionState.Disconnected -> "Sync unavailable"
+        is DriveConnectionState.Error -> message
+    }

@@ -8,6 +8,9 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -212,5 +215,31 @@ class ItemDetailScreenTest {
 
         assertEquals(1, fileClicks)
         assertEquals(1, folderClicks)
+    }
+
+    @Test
+    fun driveSignInMessageClearsWhenDriveBecomesAvailable() {
+        var driveActionsEnabled by mutableStateOf(false)
+
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList(),
+                driveActionsEnabled = driveActionsEnabled,
+                onDismiss = {},
+                onDone = {},
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("Drive file").performClick()
+        compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsDisplayed()
+
+        driveActionsEnabled = true
+
+        compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsNotDisplayed()
     }
 }

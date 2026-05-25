@@ -45,6 +45,9 @@ class QueueViewModel(
     val isCreatingItem: StateFlow<Boolean> =
         savedStateHandle.getStateFlow(KEY_IS_CREATING_ITEM, false)
 
+    val isShowingSettings: StateFlow<Boolean> =
+        savedStateHandle.getStateFlow(KEY_IS_SHOWING_SETTINGS, false)
+
     private val selectedItemId: StateFlow<String?> =
         savedStateHandle.getStateFlow(KEY_SELECTED_ITEM_ID, null)
 
@@ -99,14 +102,34 @@ class QueueViewModel(
 
     fun selectItem(id: String) {
         savedStateHandle[KEY_SELECTED_ITEM_ID] = id
+        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
     }
 
     fun startCreate() {
         savedStateHandle[KEY_IS_CREATING_ITEM] = true
+        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
     }
 
     fun cancelCreate() {
         savedStateHandle[KEY_IS_CREATING_ITEM] = false
+    }
+
+    fun showSettings() {
+        savedStateHandle[KEY_SELECTED_ITEM_ID] = null
+        savedStateHandle[KEY_IS_CREATING_ITEM] = false
+        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = true
+    }
+
+    fun closeSettings() {
+        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
+    }
+
+    fun requestDriveSignIn() {
+        driveConnectionRepository.requestSignIn()
+    }
+
+    fun disconnectDrive() {
+        driveConnectionRepository.disconnect()
     }
 
     fun createItem(
@@ -178,6 +201,7 @@ class QueueViewModel(
 
     fun backToList() {
         savedStateHandle[KEY_SELECTED_ITEM_ID] = null
+        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
     }
 
     private fun addDriveAttachment(
@@ -239,6 +263,7 @@ class QueueViewModel(
 
         private const val KEY_SELECTED_STATUS = "selectedStatus"
         private const val KEY_IS_CREATING_ITEM = "isCreatingItem"
+        private const val KEY_IS_SHOWING_SETTINGS = "isShowingSettings"
         private const val KEY_SELECTED_ITEM_ID = "selectedItemId"
     }
 }
