@@ -155,4 +155,62 @@ class ItemDetailScreenTest {
         compose.onNodeWithText("Attachment title").assertIsNotDisplayed()
         compose.onNodeWithText("Save").assertIsNotDisplayed()
     }
+
+    @Test
+    fun disconnectedDriveActionsShowSignInMessageAndDoNotCallPickers() {
+        var fileClicks = 0
+        var folderClicks = 0
+
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList(),
+                driveActionsEnabled = false,
+                onAttachDriveFile = { fileClicks += 1 },
+                onAttachDriveFolder = { folderClicks += 1 },
+                onDismiss = {},
+                onDone = {},
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("Drive file").performClick()
+        compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsDisplayed()
+        compose.onNodeWithText("Drive folder").performClick()
+        compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsDisplayed()
+
+        assertEquals(0, fileClicks)
+        assertEquals(0, folderClicks)
+    }
+
+    @Test
+    fun connectedDriveActionsInvokeCallbacks() {
+        var fileClicks = 0
+        var folderClicks = 0
+
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList(),
+                driveActionsEnabled = true,
+                onAttachDriveFile = { fileClicks += 1 },
+                onAttachDriveFolder = { folderClicks += 1 },
+                onDismiss = {},
+                onDone = {},
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("Drive file").performClick()
+        compose.onNodeWithText("Drive folder").performClick()
+
+        assertEquals(1, fileClicks)
+        assertEquals(1, folderClicks)
+    }
 }

@@ -21,6 +21,7 @@ fun SettingsScreen(
     accountEmail: String?,
     syncStatus: String,
     onManualSync: () -> Unit,
+    onSignIn: () -> Unit = {},
     onDisconnect: () -> Unit
 ) {
     LazyColumn(
@@ -68,11 +69,20 @@ fun SettingsScreen(
                 ) {
                     Text("Sync now", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                OutlinedButton(
-                    onClick = onDisconnect,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Disconnect", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (accountEmail == null) {
+                    OutlinedButton(
+                        onClick = onSignIn,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Sign in", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onDisconnect,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Disconnect", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
         }

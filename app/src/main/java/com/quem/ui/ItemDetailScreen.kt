@@ -40,13 +40,19 @@ fun ItemDetailScreen(
     onDone: () -> Unit,
     onBack: () -> Unit,
     onAddTextAttachment: (title: String, text: String) -> Unit = { _, _ -> },
-    onAddLinkAttachment: (title: String, url: String) -> Unit = { _, _ -> }
+    onAddLinkAttachment: (title: String, url: String) -> Unit = { _, _ -> },
+    driveActionsEnabled: Boolean = false,
+    driveUnavailableMessage: String = "Sign in to Google Drive to attach files",
+    onAttachDriveFile: () -> Unit = {},
+    onAttachDriveFolder: () -> Unit = {}
 ) {
     var attachmentFormType by rememberSaveable { mutableStateOf<String?>(null) }
     var attachmentTitle by rememberSaveable { mutableStateOf("") }
     var attachmentValue by rememberSaveable { mutableStateOf("") }
+    var driveMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun openAttachmentForm(type: String) {
+        driveMessage = null
         attachmentTitle = ""
         attachmentValue = ""
         attachmentFormType = type
@@ -123,9 +129,23 @@ fun ItemDetailScreen(
                 AttachmentEditor(
                     onAddText = { openAttachmentForm(ATTACHMENT_FORM_TEXT) },
                     onAddLink = { openAttachmentForm(ATTACHMENT_FORM_LINK) },
-                    onAttachDriveFile = {},
-                    onAttachDriveFolder = {},
-                    showDriveActions = false
+                    onAttachDriveFile = {
+                        if (driveActionsEnabled) {
+                            driveMessage = null
+                            onAttachDriveFile()
+                        } else {
+                            driveMessage = driveUnavailableMessage
+                        }
+                    },
+                    onAttachDriveFolder = {
+                        if (driveActionsEnabled) {
+                            driveMessage = null
+                            onAttachDriveFolder()
+                        } else {
+                            driveMessage = driveUnavailableMessage
+                        }
+                    },
+                    showDriveActions = true
                 )
             } else {
                 AttachmentForm(
@@ -145,6 +165,11 @@ fun ItemDetailScreen(
                     },
                     onCancel = { closeAttachmentForm() }
                 )
+            }
+        }
+        driveMessage?.let { message ->
+            item {
+                DetailEmptyText(message)
             }
         }
         if (attachments.isEmpty()) {

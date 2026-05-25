@@ -8,6 +8,7 @@ import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
 import com.quem.data.repository.QueueRepository
+import com.quem.drive.DisconnectedDriveConnectionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -225,6 +226,82 @@ class QueueViewModelTest {
     }
 
     @Test
+    fun addDriveFileAttachmentAddsToSelectedItem() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = null,
+            dueDate = null
+        )
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        viewModel.addDriveFileAttachment(
+            title = "contract.pdf",
+            driveFileId = "drive-file-id",
+            mimeType = "application/pdf"
+        )
+        advanceUntilIdle()
+
+        assertEquals(listOf("contract.pdf"), viewModel.selectedItem.value?.attachments)
+    }
+
+    @Test
+    fun addDriveFolderAttachmentAddsToSelectedItem() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = null,
+            dueDate = null
+        )
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        viewModel.addDriveFolderAttachment(
+            title = "Project folder",
+            driveFolderId = "drive-folder-id"
+        )
+        advanceUntilIdle()
+
+        assertEquals(listOf("Project folder"), viewModel.selectedItem.value?.attachments)
+    }
+
+    @Test
+    fun addDriveAttachmentWithoutSelectedItemDoesNothing() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = null,
+            dueDate = null
+        )
+        val viewModel = QueueViewModel(repository)
+
+        viewModel.addDriveFileAttachment("contract.pdf", "drive-file-id", "application/pdf")
+        viewModel.addDriveFolderAttachment("Project folder", "drive-folder-id")
+        advanceUntilIdle()
+
+        assertEquals(emptyList<String>(), repository.attachmentDisplayNames())
+    }
+
+    @Test
+    fun driveConnectionStateComesFromInjectedRepository() = runTest {
+        val driveConnectionRepository = DisconnectedDriveConnectionRepository()
+        val viewModel = QueueViewModel(
+            repository = FakeQueueRepository(),
+            driveConnectionRepository = driveConnectionRepository
+        )
+
+        driveConnectionRepository.requestSignIn()
+
+        assertEquals(driveConnectionRepository.state.value, viewModel.driveConnectionState.value)
+    }
+
+    @Test
     fun navigationStateRestoresFromSavedStateHandle() = runTest {
         val repository = FakeQueueRepository()
         repository.createItem(
@@ -240,7 +317,10 @@ class QueueViewModelTest {
                 "selectedItemId" to "item-1"
             )
         )
-        val viewModel = QueueViewModel(repository, savedStateHandle)
+        val viewModel = QueueViewModel(
+            repository = repository,
+            savedStateHandle = savedStateHandle
+        )
         collectSelectedItem(viewModel)
 
         runCurrent()

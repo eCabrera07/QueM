@@ -10,6 +10,9 @@ import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.data.repository.QueueRepository
+import com.quem.drive.DisconnectedDriveConnectionRepository
+import com.quem.drive.DriveConnectionRepository
+import com.quem.drive.DriveConnectionState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +36,7 @@ data class QueueItemDetailUi(
 @OptIn(ExperimentalCoroutinesApi::class)
 class QueueViewModel(
     private val repository: QueueRepository,
+    private val driveConnectionRepository: DriveConnectionRepository = DisconnectedDriveConnectionRepository(),
     private val savedStateHandle: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
     val selectedStatus: StateFlow<QueueStatus> =
@@ -43,6 +47,9 @@ class QueueViewModel(
 
     private val selectedItemId: StateFlow<String?> =
         savedStateHandle.getStateFlow(KEY_SELECTED_ITEM_ID, null)
+
+    val driveConnectionState: StateFlow<DriveConnectionState> =
+        driveConnectionRepository.state
 
     val items: StateFlow<List<QueueListItemUi>> =
         selectedStatus
@@ -151,8 +158,44 @@ class QueueViewModel(
         }
     }
 
+    fun addDriveFileAttachment(title: String, driveFileId: String, mimeType: String?) {
+        addDriveAttachment(
+            title = title,
+            driveFileId = driveFileId,
+            mimeType = mimeType,
+            isFolder = false
+        )
+    }
+
+    fun addDriveFolderAttachment(title: String, driveFolderId: String) {
+        addDriveAttachment(
+            title = title,
+            driveFileId = driveFolderId,
+            mimeType = null,
+            isFolder = true
+        )
+    }
+
     fun backToList() {
         savedStateHandle[KEY_SELECTED_ITEM_ID] = null
+    }
+
+    private fun addDriveAttachment(
+        title: String,
+        driveFileId: String,
+        mimeType: String?,
+        isFolder: Boolean
+    ) {
+        val id = selectedItemId.value ?: return
+        viewModelScope.launch {
+            repository.addDriveAttachment(
+                queueItemId = id,
+                title = title,
+                driveFileId = driveFileId,
+                mimeType = mimeType,
+                isFolder = isFolder
+            )
+        }
     }
 
     private fun moveSelectedItemTo(status: QueueStatus) {
@@ -165,12 +208,18 @@ class QueueViewModel(
     }
 
     companion object {
-        fun factory(repository: QueueRepository): ViewModelProvider.Factory =
+        fun factory(
+            repository: QueueRepository,
+            driveConnectionRepository: DriveConnectionRepository = DisconnectedDriveConnectionRepository()
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     if (modelClass.isAssignableFrom(QueueViewModel::class.java)) {
-                        return QueueViewModel(repository) as T
+                        return QueueViewModel(
+                            repository = repository,
+                            driveConnectionRepository = driveConnectionRepository
+                        ) as T
                     }
                     throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
                 }
@@ -180,6 +229,7 @@ class QueueViewModel(
                     if (modelClass.isAssignableFrom(QueueViewModel::class.java)) {
                         return QueueViewModel(
                             repository = repository,
+                            driveConnectionRepository = driveConnectionRepository,
                             savedStateHandle = extras.createSavedStateHandle()
                         ) as T
                     }

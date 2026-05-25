@@ -18,6 +18,7 @@ class SettingsScreenTest {
                 accountEmail = "user@example.com",
                 syncStatus = "Last synced just now",
                 onManualSync = {},
+                onSignIn = {},
                 onDisconnect = {}
             )
         }
@@ -29,24 +30,44 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun invokesManualSyncAndDisconnectCallbacks() {
+    fun invokesManualSyncAndDisconnectCallbacksWhenConnected() {
         var manualSyncClicks = 0
         var disconnectClicks = 0
 
         compose.setContent {
             SettingsScreen(
-                accountEmail = null,
-                syncStatus = "Sync unavailable",
+                accountEmail = "user@example.com",
+                syncStatus = "Last synced just now",
                 onManualSync = { manualSyncClicks += 1 },
+                onSignIn = {},
                 onDisconnect = { disconnectClicks += 1 }
             )
         }
 
-        compose.onNodeWithText("Not signed in").assertIsDisplayed()
         compose.onNodeWithText("Sync now").performClick()
         compose.onNodeWithText("Disconnect").performClick()
 
         assertEquals(1, manualSyncClicks)
         assertEquals(1, disconnectClicks)
+    }
+
+    @Test
+    fun disconnectedSettingsShowsSignInAction() {
+        var signInClicks = 0
+
+        compose.setContent {
+            SettingsScreen(
+                accountEmail = null,
+                syncStatus = "Sync unavailable",
+                onManualSync = {},
+                onSignIn = { signInClicks += 1 },
+                onDisconnect = {}
+            )
+        }
+
+        compose.onNodeWithText("Not signed in").assertIsDisplayed()
+        compose.onNodeWithText("Sign in").performClick()
+
+        assertEquals(1, signInClicks)
     }
 }

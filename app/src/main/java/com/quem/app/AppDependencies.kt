@@ -6,6 +6,8 @@ import com.quem.core.time.SystemClock
 import com.quem.data.local.QueMDatabase
 import com.quem.data.repository.QueueRepository
 import com.quem.data.repository.RoomQueueRepository
+import com.quem.drive.DisconnectedDriveConnectionRepository
+import com.quem.drive.DriveConnectionRepository
 import java.util.UUID
 
 class AppDependencies(context: Context) {
@@ -20,6 +22,8 @@ class AppDependencies(context: Context) {
         clock = SystemClock(),
         idProvider = { UUID.randomUUID().toString() }
     )
+
+    val driveConnectionRepository: DriveConnectionRepository = DisconnectedDriveConnectionRepository()
 
     private companion object {
         const val DATABASE_NAME = "quem.db"
