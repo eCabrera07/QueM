@@ -6,7 +6,7 @@ import org.junit.Test
 class DrivePickerCoordinatorTest {
     @Test
     fun noOpPickFileCallsCallbackWithNull() {
-        val coordinator: DrivePickerCoordinator = NoOpDrivePickerCoordinator()
+        val coordinator: DrivePickerCoordinator = NoOpDrivePickerCoordinator
         var result: DriveSelection? = DriveSelection("initial", "initial", null, false)
 
         coordinator.pickFile { result = it }
@@ -16,7 +16,7 @@ class DrivePickerCoordinatorTest {
 
     @Test
     fun noOpPickFolderCallsCallbackWithNull() {
-        val coordinator: DrivePickerCoordinator = NoOpDrivePickerCoordinator()
+        val coordinator: DrivePickerCoordinator = NoOpDrivePickerCoordinator
         var result: DriveSelection? = DriveSelection("initial", "initial", null, true)
 
         coordinator.pickFolder { result = it }

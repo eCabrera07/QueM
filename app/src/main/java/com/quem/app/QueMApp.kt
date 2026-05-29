@@ -20,7 +20,7 @@ import com.quem.ui.SettingsScreen
 fun QueMApp(
     queueRepository: QueueRepository,
     driveConnectionRepository: DriveConnectionRepository = DisconnectedDriveConnectionRepository(),
-    drivePickerCoordinator: DrivePickerCoordinator = NoOpDrivePickerCoordinator()
+    drivePickerCoordinator: DrivePickerCoordinator = NoOpDrivePickerCoordinator
 ) {
     val viewModel: QueueViewModel = viewModel(
         factory = QueueViewModel.factory(
