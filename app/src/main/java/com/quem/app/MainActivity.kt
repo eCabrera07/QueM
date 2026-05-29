@@ -32,21 +32,20 @@ class MainActivity : ComponentActivity() {
         )
         dependencies.driveConnectionRepository.setAuthorizationCoordinator(driveAuthorizationCoordinator)
 
-        lateinit var drivePickerCoordinator: SafDrivePickerCoordinator
         val filePickerLauncher = registerForActivityResult(
             ActivityResultContracts.OpenDocument()
         ) { uri: Uri? ->
-            drivePickerCoordinator.handleFileResult(uri)
+            dependencies.drivePickerRepository.handleFileResult(uri)
         }
         val folderPickerLauncher = registerForActivityResult(
             ActivityResultContracts.OpenDocumentTree()
         ) { uri: Uri? ->
-            drivePickerCoordinator.handleFolderResult(uri)
+            dependencies.drivePickerRepository.handleFolderResult(uri)
         }
-        drivePickerCoordinator = SafDrivePickerCoordinator(
+        val drivePickerCoordinator = SafDrivePickerCoordinator(
             fileLauncher = filePickerLauncher,
             folderLauncher = folderPickerLauncher,
-            contentResolver = contentResolver
+            drivePickerRepository = dependencies.drivePickerRepository
         )
 
         setContent {
