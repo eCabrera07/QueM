@@ -8,7 +8,8 @@ import com.quem.data.repository.QueueRepository
 import com.quem.drive.DisconnectedDriveConnectionRepository
 import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.DriveConnectionState
-import com.quem.drive.DriveSelection
+import com.quem.drive.DrivePickerCoordinator
+import com.quem.drive.NoOpDrivePickerCoordinator
 import com.quem.ui.CreateItemScreen
 import com.quem.ui.ItemDetailScreen
 import com.quem.ui.QueueListScreen
@@ -19,8 +20,7 @@ import com.quem.ui.SettingsScreen
 fun QueMApp(
     queueRepository: QueueRepository,
     driveConnectionRepository: DriveConnectionRepository = DisconnectedDriveConnectionRepository(),
-    onPickDriveFile: () -> DriveSelection? = { null },
-    onPickDriveFolder: () -> DriveSelection? = { null }
+    drivePickerCoordinator: DrivePickerCoordinator = NoOpDrivePickerCoordinator()
 ) {
     val viewModel: QueueViewModel = viewModel(
         factory = QueueViewModel.factory(
@@ -78,22 +78,24 @@ fun QueMApp(
             onAddLinkAttachment = viewModel::addLinkAttachment,
             driveActionsEnabled = driveConnected,
             onAttachDriveFile = {
-                val selection = onPickDriveFile()
-                if (selection != null) {
-                    viewModel.addDriveFileAttachment(
-                        title = selection.name,
-                        driveFileId = selection.id,
-                        mimeType = selection.mimeType
-                    )
+                drivePickerCoordinator.pickFile { selection ->
+                    if (selection != null) {
+                        viewModel.addDriveFileAttachment(
+                            title = selection.name,
+                            driveFileId = selection.id,
+                            mimeType = selection.mimeType
+                        )
+                    }
                 }
             },
             onAttachDriveFolder = {
-                val selection = onPickDriveFolder()
-                if (selection != null) {
-                    viewModel.addDriveFolderAttachment(
-                        title = selection.name,
-                        driveFolderId = selection.id
-                    )
+                drivePickerCoordinator.pickFolder { selection ->
+                    if (selection != null) {
+                        viewModel.addDriveFolderAttachment(
+                            title = selection.name,
+                            driveFolderId = selection.id
+                        )
+                    }
                 }
             },
             onDismiss = viewModel::dismissSelectedItem,
