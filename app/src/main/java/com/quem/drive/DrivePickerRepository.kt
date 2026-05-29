@@ -3,12 +3,17 @@ package com.quem.drive
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.DocumentsContract
+import androidx.annotation.MainThread
 
 /**
  * Persists Drive picker callbacks across Activity recreation.
  * Lives in AppDependencies so it survives configuration changes.
  * MainActivity routes SAF results here directly, mirroring
  * how GoogleDriveConnectionRepository receives auth results.
+ *
+ * All methods must be called on the main thread. No synchronization is
+ * applied because every call site (Compose UI and Activity Result callbacks)
+ * already runs on the main thread.
  */
 class DrivePickerRepository(private val contentResolver: ContentResolver) {
     private var pendingFileCallback: ((DriveSelection?) -> Unit)? = null
@@ -18,6 +23,7 @@ class DrivePickerRepository(private val contentResolver: ContentResolver) {
      * Stores the callback for an in-flight file pick. Returns true if stored,
      * false if a pick is already in progress (double-tap guard).
      */
+    @MainThread
     fun setPendingFileCallback(callback: (DriveSelection?) -> Unit): Boolean {
         if (pendingFileCallback != null) return false
         pendingFileCallback = callback
@@ -28,6 +34,7 @@ class DrivePickerRepository(private val contentResolver: ContentResolver) {
      * Stores the callback for an in-flight folder pick. Returns true if stored,
      * false if a pick is already in progress (double-tap guard).
      */
+    @MainThread
     fun setPendingFolderCallback(callback: (DriveSelection?) -> Unit): Boolean {
         if (pendingFolderCallback != null) return false
         pendingFolderCallback = callback
@@ -35,6 +42,7 @@ class DrivePickerRepository(private val contentResolver: ContentResolver) {
     }
 
     /** Called by MainActivity when the file picker Activity Result arrives. Survives Activity recreation. */
+    @MainThread
     fun handleFileResult(uri: Uri?) {
         val callback = pendingFileCallback
         pendingFileCallback = null
@@ -42,6 +50,7 @@ class DrivePickerRepository(private val contentResolver: ContentResolver) {
     }
 
     /** Called by MainActivity when the folder picker Activity Result arrives. Survives Activity recreation. */
+    @MainThread
     fun handleFolderResult(uri: Uri?) {
         val callback = pendingFolderCallback
         pendingFolderCallback = null
@@ -72,4 +81,19 @@ class DrivePickerRepository(private val contentResolver: ContentResolver) {
             if (cursor.moveToFirst()) cursor.getString(0) to cursor.getString(1)
             else null to null
         } ?: (null to null)
+}
+
+/**
+ * Extracts the Drive file/folder ID from a SAF document ID.
+ * SAF document IDs from the Drive provider use the format:
+ *   `acc=<n>/doc=<driveId>` (files) or
+ *   `acc=<n>/type=dir/root=<r>/doc=<driveId>` (folders).
+ * URL-encoded variants are decoded before parsing.
+ */
+internal fun extractDriveId(documentId: String): String? {
+    val decoded = if ('%' in documentId) Uri.decode(documentId) else documentId
+    return decoded.split("/")
+        .lastOrNull { it.startsWith("doc=") }
+        ?.removePrefix("doc=")
+        ?.takeIf { it.isNotEmpty() }
 }

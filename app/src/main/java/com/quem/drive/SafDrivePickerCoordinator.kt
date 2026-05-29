@@ -20,11 +20,3 @@ class SafDrivePickerCoordinator(
         }
     }
 }
-
-internal fun extractDriveId(documentId: String): String? {
-    val decoded = if ('%' in documentId) Uri.decode(documentId) else documentId
-    return decoded.split("/")
-        .lastOrNull { it.startsWith("doc=") }
-        ?.removePrefix("doc=")
-        ?.takeIf { it.isNotEmpty() }
-}
