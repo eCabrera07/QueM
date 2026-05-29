@@ -14,11 +14,13 @@ class SafDrivePickerCoordinator(
     private var pendingFolderCallback: ((DriveSelection?) -> Unit)? = null
 
     override fun pickFile(onResult: (DriveSelection?) -> Unit) {
+        if (pendingFileCallback != null) return
         pendingFileCallback = onResult
         fileLauncher.launch(arrayOf("*/*"))
     }
 
     override fun pickFolder(onResult: (DriveSelection?) -> Unit) {
+        if (pendingFolderCallback != null) return
         pendingFolderCallback = onResult
         folderLauncher.launch(null)
     }

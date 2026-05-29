@@ -37,4 +37,10 @@ class SafDrivePickerCoordinatorTest {
     fun extractDriveIdReturnsNullWhenDocValueIsEmpty() {
         assertNull(extractDriveId("acc=0/doc="))
     }
+
+    @Test
+    fun extractDriveIdPrefersLastDocSegment() {
+        val documentId = "doc=rootId/doc=leafId"
+        assertEquals("leafId", extractDriveId(documentId))
+    }
 }
