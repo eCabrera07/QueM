@@ -313,6 +313,7 @@ private fun String?.toLocalDateOrNull(): LocalDate? {
 internal fun HistoryEntry.toDisplayString(now: Instant): String {
     val elapsed = Duration.between(createdAt, now)
     val timeLabel = when {
+        elapsed.isNegative -> "just now"
         elapsed.seconds < 60 -> "just now"
         elapsed.toMinutes() < 60 -> {
             val m = elapsed.toMinutes()

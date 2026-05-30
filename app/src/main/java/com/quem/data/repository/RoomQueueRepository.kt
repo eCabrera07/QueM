@@ -8,6 +8,7 @@ import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
+import android.util.Log
 import com.quem.core.time.Clock
 import com.quem.data.local.HistoryEntryEntity
 import com.quem.data.local.QueueDao
@@ -75,7 +76,7 @@ class RoomQueueRepository(
                 )
             )
         }.onFailure { e ->
-            android.util.Log.w(TAG, "Failed to write history entry", e)
+            Log.w(TAG, "Failed to write history entry", e)
         }
         return item
     }
@@ -108,7 +109,7 @@ class RoomQueueRepository(
                 )
             )
         }.onFailure { e ->
-            android.util.Log.w(TAG, "Failed to write history entry", e)
+            Log.w(TAG, "Failed to write history entry", e)
         }
 
         return dao.observeItem(id).first()?.toDomain()
@@ -203,7 +204,7 @@ class RoomQueueRepository(
                 )
             )
         }.onFailure { e ->
-            android.util.Log.w(TAG, "Failed to write history entry", e)
+            Log.w(TAG, "Failed to write history entry", e)
         }
     }
 

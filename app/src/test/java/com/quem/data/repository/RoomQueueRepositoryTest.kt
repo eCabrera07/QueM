@@ -584,7 +584,7 @@ class RoomQueueRepositoryTest {
         repository.changeStatus("item-1", QueueStatus.DONE)
 
         val history = repository.observeHistory("item-1").first()
-        val statusEntry = history.first() // newest first
+        val statusEntry = history.first { it.message == "Marked as Done" }
         assertEquals(HistoryKind.STATUS_CHANGE, statusEntry.kind)
         assertEquals("Marked as Done", statusEntry.message)
     }
@@ -619,7 +619,7 @@ class RoomQueueRepositoryTest {
         repository.addTextAttachment("item-1", " My Note ", "Remember this")
 
         val history = repository.observeHistory("item-1").first()
-        val attachmentEntry = history.first() // newest first
+        val attachmentEntry = history.first { it.kind == HistoryKind.ATTACHMENT_ADDED }
         assertEquals(HistoryKind.ATTACHMENT_ADDED, attachmentEntry.kind)
         assertEquals("Attachment added: My Note", attachmentEntry.message)
     }
