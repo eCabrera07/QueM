@@ -30,6 +30,21 @@ interface QueueDao {
     @Query("SELECT * FROM queue_items WHERE syncState = 'PENDING_SYNC'")
     suspend fun pendingItems(): List<QueueItemEntity>
 
+    @Query("SELECT * FROM queue_items")
+    suspend fun allItems(): List<QueueItemEntity>
+
+    @Query("SELECT * FROM attachments")
+    suspend fun allAttachments(): List<AttachmentEntity>
+
+    @Query("SELECT * FROM history_entries")
+    suspend fun allHistory(): List<HistoryEntryEntity>
+
+    @Query("UPDATE queue_items SET syncState = 'SYNCED' WHERE syncState = 'PENDING_SYNC'")
+    suspend fun markItemsSynced()
+
+    @Query("UPDATE attachments SET syncState = 'SYNCED' WHERE syncState = 'PENDING_SYNC'")
+    suspend fun markAttachmentsSynced()
+
     @Upsert
     suspend fun upsertItem(item: QueueItemEntity)
 

@@ -675,6 +675,32 @@ private class FakeQueueDao : QueueDao {
     override suspend fun pendingItems(): List<QueueItemEntity> =
         entities.value.filter { it.syncState == SyncState.PENDING_SYNC.name }
 
+    override suspend fun allItems(): List<QueueItemEntity> = entities.value
+
+    override suspend fun allAttachments(): List<AttachmentEntity> = attachmentEntities.value
+
+    override suspend fun allHistory(): List<HistoryEntryEntity> = historyEntities.value
+
+    override suspend fun markItemsSynced() {
+        entities.value = entities.value.map { item ->
+            if (item.syncState == SyncState.PENDING_SYNC.name) {
+                item.copy(syncState = SyncState.SYNCED.name)
+            } else {
+                item
+            }
+        }
+    }
+
+    override suspend fun markAttachmentsSynced() {
+        attachmentEntities.value = attachmentEntities.value.map { attachment ->
+            if (attachment.syncState == SyncState.PENDING_SYNC.name) {
+                attachment.copy(syncState = SyncState.SYNCED.name)
+            } else {
+                attachment
+            }
+        }
+    }
+
     override suspend fun upsertItem(item: QueueItemEntity) {
         entities.value = entities.value.filterNot { it.id == item.id } + item
     }
