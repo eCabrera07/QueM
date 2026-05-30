@@ -2,6 +2,8 @@ package com.quem.data.repository
 
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
+import com.quem.core.model.HistoryEntry
+import com.quem.core.model.HistoryKind
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
@@ -519,6 +521,21 @@ class RoomQueueRepositoryTest {
             repository.observeAttachments("item-1").first()
         )
     }
+
+    @Test
+    fun observeHistoryReturnsEmptyListWhenNoEntriesExist() = runTest {
+        val dao = FakeQueueDao()
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { "item-1" }
+        )
+        dao.upsertItem(queueItemEntity(id = "item-1", now = Instant.parse("2026-05-23T12:00:00Z")))
+
+        val history = repository.observeHistory("item-1").first()
+
+        assertEquals(emptyList<HistoryEntry>(), history)
+    }
 }
 
 private fun queueItemEntity(
@@ -546,6 +563,7 @@ private fun queueItemEntity(
 private class FakeQueueDao : QueueDao {
     private val entities = MutableStateFlow<List<QueueItemEntity>>(emptyList())
     private val attachmentEntities = MutableStateFlow<List<AttachmentEntity>>(emptyList())
+    private val historyEntities = MutableStateFlow<List<HistoryEntryEntity>>(emptyList())
 
     val items
         get() = entities.value.map { it.toDomain() }
@@ -603,7 +621,9 @@ private class FakeQueueDao : QueueDao {
         attachmentEntities.value = attachmentEntities.value.filterNot { it.id == attachment.id } + attachment
     }
 
-    override suspend fun upsertHistoryEntry(entry: HistoryEntryEntity) = Unit
+    override suspend fun upsertHistoryEntry(entry: HistoryEntryEntity) {
+        historyEntities.value = historyEntities.value.filterNot { it.id == entry.id } + entry
+    }
 
     override fun observeAttachments(queueItemId: String): Flow<List<AttachmentEntity>> =
         attachmentEntities.map { attachments ->
@@ -613,7 +633,9 @@ private class FakeQueueDao : QueueDao {
         }
 
     override fun observeHistory(queueItemId: String): Flow<List<HistoryEntryEntity>> =
-        MutableStateFlow(emptyList())
+        historyEntities.map { entries ->
+            entries.filter { it.queueItemId == queueItemId }.sortedByDescending { it.createdAt }
+        }
 }
 
 private fun likeContains(value: String, query: String): Boolean {
