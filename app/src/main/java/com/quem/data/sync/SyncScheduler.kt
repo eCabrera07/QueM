@@ -2,6 +2,7 @@ package com.quem.data.sync
 
 import android.content.Context
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.time.Duration
@@ -21,6 +22,11 @@ object SyncScheduler {
             ExistingPeriodicWorkPolicy.UPDATE,
             request
         )
+    }
+
+    fun scheduleOnce(context: Context) {
+        val request = OneTimeWorkRequestBuilder<SyncWorker>().build()
+        WorkManager.getInstance(context).enqueue(request)
     }
 
     private const val PERIODIC_SYNC_NAME = "quem-periodic-sync"

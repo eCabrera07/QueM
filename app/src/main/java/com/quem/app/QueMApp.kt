@@ -2,9 +2,11 @@ package com.quem.app
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.quem.data.repository.QueueRepository
+import com.quem.data.sync.SyncScheduler
 import com.quem.drive.DisconnectedDriveConnectionRepository
 import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.DriveConnectionState
@@ -22,6 +24,7 @@ fun QueMApp(
     driveConnectionRepository: DriveConnectionRepository = DisconnectedDriveConnectionRepository(),
     drivePickerCoordinator: DrivePickerCoordinator = NoOpDrivePickerCoordinator
 ) {
+    val context = LocalContext.current
     val viewModel: QueueViewModel = viewModel(
         factory = QueueViewModel.factory(
             repository = queueRepository,
@@ -39,7 +42,7 @@ fun QueMApp(
         SettingsScreen(
             accountEmail = driveConnectionState.accountEmail(),
             syncStatus = driveConnectionState.syncStatusLabel(),
-            onManualSync = {},
+            onManualSync = { SyncScheduler.scheduleOnce(context) },
             onSignIn = viewModel::requestDriveSignIn,
             onDisconnect = viewModel::disconnectDrive,
             onBack = viewModel::closeSettings
