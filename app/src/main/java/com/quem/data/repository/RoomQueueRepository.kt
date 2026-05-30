@@ -74,6 +74,8 @@ class RoomQueueRepository(
                     createdAt = now
                 )
             )
+        }.onFailure { e ->
+            android.util.Log.w(TAG, "Failed to write history entry", e)
         }
         return item
     }
@@ -170,5 +172,9 @@ class RoomQueueRepository(
             syncState = SyncState.PENDING_SYNC
         )
         dao.upsertAttachment(attachment.toEntity())
+    }
+
+    private companion object {
+        private const val TAG = "RoomQueueRepository"
     }
 }

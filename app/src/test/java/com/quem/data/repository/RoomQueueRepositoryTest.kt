@@ -57,10 +57,11 @@ class RoomQueueRepositoryTest {
     @Test
     fun observeItemReturnsItemById() = runTest {
         val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1")
         val repository = RoomQueueRepository(
             dao = dao,
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
-            idProvider = { "item-1" }
+            idProvider = { ids.removeFirst() }
         )
         val created = repository.createItem(
             title = "Read contract",
@@ -213,10 +214,11 @@ class RoomQueueRepositoryTest {
     @Test
     fun createItemCreatesQueuedPendingSyncItem() = runTest {
         val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1")
         val repository = RoomQueueRepository(
             dao = dao,
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
-            idProvider = { "item-1" }
+            idProvider = { ids.removeFirst() }
         )
 
         val created = repository.createItem(
@@ -236,10 +238,11 @@ class RoomQueueRepositoryTest {
     @Test
     fun createItemPersistsPriorityAndDueDate() = runTest {
         val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1")
         val repository = RoomQueueRepository(
             dao = dao,
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
-            idProvider = { "item-1" }
+            idProvider = { ids.removeFirst() }
         )
 
         val created = repository.createItem(
@@ -257,10 +260,11 @@ class RoomQueueRepositoryTest {
     @Test
     fun createItemTrimsTitleAndNormalizesBlankDescription() = runTest {
         val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1")
         val repository = RoomQueueRepository(
             dao = dao,
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
-            idProvider = { "item-1" }
+            idProvider = { ids.removeFirst() }
         )
 
         val created = repository.createItem(
@@ -278,10 +282,11 @@ class RoomQueueRepositoryTest {
     @Test
     fun changeStatusAppliesQueueRulesAndPersistsItem() = runTest {
         val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-create", "history-status")
         val repository = RoomQueueRepository(
             dao = dao,
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
-            idProvider = { "item-1" }
+            idProvider = { ids.removeFirst() }
         )
         repository.createItem(
             title = "Read contract",
