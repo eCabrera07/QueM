@@ -29,7 +29,7 @@ class RoomQueueRepositoryTest {
     @Test
     fun observeItemsReturnsItemsWithMatchingStatus() = runTest {
         val dao = FakeQueueDao()
-        val ids = mutableListOf("item-1", "item-2")
+        val ids = mutableListOf("item-1", "history-1", "item-2", "history-2")
         val repository = RoomQueueRepository(
             dao = dao,
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
@@ -535,6 +535,27 @@ class RoomQueueRepositoryTest {
         val history = repository.observeHistory("item-1").first()
 
         assertEquals(emptyList<HistoryEntry>(), history)
+    }
+
+    @Test
+    fun createItemWritesCreatedHistoryEntry() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1")
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { ids.removeFirst() }
+        )
+
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+
+        val history = repository.observeHistory("item-1").first()
+        assertEquals(1, history.size)
+        assertEquals(HistoryKind.STATUS_CHANGE, history.single().kind)
+        assertEquals("Created", history.single().message)
+        assertEquals(now, history.single().createdAt)
+        assertEquals("item-1", history.single().queueItemId)
     }
 }
 

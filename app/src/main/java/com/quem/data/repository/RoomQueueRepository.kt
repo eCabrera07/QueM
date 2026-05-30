@@ -3,11 +3,13 @@ package com.quem.data.repository
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
 import com.quem.core.model.HistoryEntry
+import com.quem.core.model.HistoryKind
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
 import com.quem.core.time.Clock
+import com.quem.data.local.HistoryEntryEntity
 import com.quem.data.local.QueueDao
 import com.quem.data.local.toDomain
 import com.quem.data.local.toEntity
@@ -62,6 +64,17 @@ class RoomQueueRepository(
             syncState = SyncState.PENDING_SYNC
         )
         dao.upsertItem(item.toEntity())
+        runCatching {
+            dao.upsertHistoryEntry(
+                HistoryEntryEntity(
+                    id = idProvider(),
+                    queueItemId = item.id,
+                    message = "Created",
+                    kind = HistoryKind.STATUS_CHANGE.name,
+                    createdAt = now
+                )
+            )
+        }
         return item
     }
 
