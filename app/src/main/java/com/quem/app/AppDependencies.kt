@@ -21,7 +21,7 @@ class AppDependencies(context: Context) {
 
     val dao: QueueDao = database.queueDao()
 
-    private val driveAccountPreferences = DriveAccountPreferences(context.applicationContext)
+    internal val driveAccountPreferences = DriveAccountPreferences(context.applicationContext)
 
     val queueRepository: QueueRepository = RoomQueueRepository(
         dao = dao,

@@ -10,7 +10,6 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.quem.app.QueMApplication
 import com.quem.core.time.SystemClock
-import com.quem.drive.DriveAccountPreferences
 import com.quem.drive.GoogleDriveAuthorizationCoordinator
 import com.quem.drive.GoogleDriveGateway
 import java.io.IOException
@@ -22,7 +21,9 @@ class SyncWorker(
 
     override suspend fun doWork(): Result {
         return try {
-            val email = DriveAccountPreferences(applicationContext).load()
+            val deps = (applicationContext as QueMApplication).dependencies
+
+            val email = deps.driveAccountPreferences.load()
                 ?: return Result.success() // not signed in — skip silently
 
             val credential = GoogleAccountCredential
@@ -36,8 +37,6 @@ class SyncWorker(
             )
                 .setApplicationName("QueM")
                 .build()
-
-            val deps = (applicationContext as QueMApplication).dependencies
 
             SyncCoordinator(
                 dao         = deps.dao,
