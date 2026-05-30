@@ -91,6 +91,26 @@ class RoomQueueRepository(
         )
         if (updatedRows == 0) return null
 
+        val message = when (status) {
+            QueueStatus.QUEUED -> "Moved back to Queued"
+            QueueStatus.IN_PROGRESS -> "Moved to In Progress"
+            QueueStatus.DONE -> "Marked as Done"
+            QueueStatus.DISMISSED -> "Dismissed"
+        }
+        runCatching {
+            dao.upsertHistoryEntry(
+                HistoryEntryEntity(
+                    id = idProvider(),
+                    queueItemId = id,
+                    message = message,
+                    kind = HistoryKind.STATUS_CHANGE.name,
+                    createdAt = now
+                )
+            )
+        }.onFailure { e ->
+            android.util.Log.w(TAG, "Failed to write history entry", e)
+        }
+
         return dao.observeItem(id).first()?.toDomain()
     }
 

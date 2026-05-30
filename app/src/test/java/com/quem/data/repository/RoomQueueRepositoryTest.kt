@@ -29,7 +29,7 @@ class RoomQueueRepositoryTest {
     @Test
     fun observeItemsReturnsItemsWithMatchingStatus() = runTest {
         val dao = FakeQueueDao()
-        val ids = mutableListOf("item-1", "history-1", "item-2", "history-2")
+        val ids = mutableListOf("item-1", "history-1", "item-2", "history-2", "history-status")
         val repository = RoomQueueRepository(
             dao = dao,
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
@@ -324,10 +324,11 @@ class RoomQueueRepositoryTest {
     @Test
     fun changeStatusPreservesFieldsOutsideStatusPatch() = runTest {
         val dao = FakeQueueDao()
+        val ids = mutableListOf("history-done")
         val repository = RoomQueueRepository(
             dao = dao,
             clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
-            idProvider = { "item-1" }
+            idProvider = { ids.removeFirst() }
         )
         dao.upsertItem(
             QueueItemEntity(
@@ -561,6 +562,41 @@ class RoomQueueRepositoryTest {
         assertEquals("Created", history.single().message)
         assertEquals(now, history.single().createdAt)
         assertEquals("item-1", history.single().queueItemId)
+    }
+
+    @Test
+    fun changeStatusDoneWritesHistoryEntry() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-create", "history-done")
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+
+        repository.changeStatus("item-1", QueueStatus.DONE)
+
+        val history = repository.observeHistory("item-1").first()
+        val statusEntry = history.first() // newest first
+        assertEquals(HistoryKind.STATUS_CHANGE, statusEntry.kind)
+        assertEquals("Marked as Done", statusEntry.message)
+    }
+
+    @Test
+    fun changeStatusNoOpDoesNotWriteHistoryEntry() = runTest {
+        val dao = FakeQueueDao()
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { "unused" }
+        )
+
+        repository.changeStatus("missing", QueueStatus.DONE)
+
+        assertEquals(emptyList<HistoryEntry>(), repository.observeHistory("missing").first())
     }
 }
 
