@@ -368,7 +368,12 @@ class RoomQueueRepositoryTest {
     @Test
     fun addAttachmentsCreatesPendingSyncAttachmentsAndObservesByParent() = runTest {
         val dao = FakeQueueDao()
-        val ids = mutableListOf("text-1", "link-1", "drive-file-1", "drive-folder-1")
+        val ids = mutableListOf(
+            "text-1", "history-text",
+            "link-1", "history-link",
+            "drive-file-1", "history-drive-file",
+            "drive-folder-1", "history-drive-folder"
+        )
         val now = Instant.parse("2026-05-23T12:00:00Z")
         val repository = RoomQueueRepository(
             dao = dao,
@@ -479,7 +484,7 @@ class RoomQueueRepositoryTest {
     @Test
     fun addAttachmentsNoOpWhenRequiredInputsAreBlankAndNormalizeOptionalInputs() = runTest {
         val dao = FakeQueueDao()
-        val ids = mutableListOf("link-1", "drive-1", "unused")
+        val ids = mutableListOf("link-1", "history-link", "drive-1", "history-drive", "unused")
         val now = Instant.parse("2026-05-23T12:00:00Z")
         val repository = RoomQueueRepository(
             dao = dao,
@@ -597,6 +602,26 @@ class RoomQueueRepositoryTest {
         repository.changeStatus("missing", QueueStatus.DONE)
 
         assertEquals(emptyList<HistoryEntry>(), repository.observeHistory("missing").first())
+    }
+
+    @Test
+    fun addTextAttachmentWritesAttachmentAddedHistoryEntry() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-create", "attachment-1", "history-attachment")
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+
+        repository.addTextAttachment("item-1", " My Note ", "Remember this")
+
+        val history = repository.observeHistory("item-1").first()
+        val attachmentEntry = history.first() // newest first
+        assertEquals(HistoryKind.ATTACHMENT_ADDED, attachmentEntry.kind)
+        assertEquals("Attachment added: My Note", attachmentEntry.message)
     }
 }
 

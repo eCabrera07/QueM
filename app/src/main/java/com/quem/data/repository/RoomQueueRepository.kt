@@ -192,6 +192,19 @@ class RoomQueueRepository(
             syncState = SyncState.PENDING_SYNC
         )
         dao.upsertAttachment(attachment.toEntity())
+        runCatching {
+            dao.upsertHistoryEntry(
+                HistoryEntryEntity(
+                    id = idProvider(),
+                    queueItemId = queueItemId,
+                    message = "Attachment added: $displayName",
+                    kind = HistoryKind.ATTACHMENT_ADDED.name,
+                    createdAt = now
+                )
+            )
+        }.onFailure { e ->
+            android.util.Log.w(TAG, "Failed to write history entry", e)
+        }
     }
 
     private companion object {
