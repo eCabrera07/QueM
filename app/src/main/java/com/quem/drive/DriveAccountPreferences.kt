@@ -3,7 +3,7 @@ package com.quem.drive
 import android.content.Context
 
 class DriveAccountPreferences(context: Context) {
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun save(email: String) {
         prefs.edit().putString(KEY_EMAIL, email).apply()
