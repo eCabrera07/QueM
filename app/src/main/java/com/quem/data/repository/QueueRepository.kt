@@ -1,6 +1,7 @@
 package com.quem.data.repository
 
 import com.quem.core.model.Attachment
+import com.quem.core.model.HistoryEntry
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
@@ -24,6 +25,8 @@ interface QueueRepository {
     suspend fun changeStatus(id: String, status: QueueStatus): QueueItem?
 
     fun observeAttachments(queueItemId: String): Flow<List<Attachment>>
+
+    fun observeHistory(queueItemId: String): Flow<List<HistoryEntry>>
 
     suspend fun addTextAttachment(queueItemId: String, title: String, text: String)
 

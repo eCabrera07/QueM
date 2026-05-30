@@ -3,6 +3,7 @@ package com.quem.ui
 import androidx.lifecycle.SavedStateHandle
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
+import com.quem.core.model.HistoryEntry
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
@@ -470,6 +471,9 @@ private class FakeQueueRepository : QueueRepository {
             mimeType = mimeType
         )
     }
+
+    override fun observeHistory(queueItemId: String): Flow<List<HistoryEntry>> =
+        flowOf(emptyList())
 
     private fun addAttachment(
         queueItemId: String,

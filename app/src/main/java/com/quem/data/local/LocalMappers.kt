@@ -2,6 +2,8 @@ package com.quem.data.local
 
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
+import com.quem.core.model.HistoryEntry
+import com.quem.core.model.HistoryKind
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
@@ -65,4 +67,12 @@ fun Attachment.toEntity(): AttachmentEntity = AttachmentEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
     syncState = syncState.name
+)
+
+fun HistoryEntryEntity.toDomain(): HistoryEntry = HistoryEntry(
+    id = id,
+    queueItemId = queueItemId,
+    message = message,
+    kind = runCatching { HistoryKind.valueOf(kind) }.getOrElse { HistoryKind.NOTE },
+    createdAt = createdAt
 )

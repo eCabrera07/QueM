@@ -2,6 +2,7 @@ package com.quem.data.repository
 
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
+import com.quem.core.model.HistoryEntry
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
@@ -34,6 +35,9 @@ class RoomQueueRepository(
 
     override fun observeAttachments(queueItemId: String): Flow<List<Attachment>> =
         dao.observeAttachments(queueItemId).map { attachments -> attachments.map { it.toDomain() } }
+
+    override fun observeHistory(queueItemId: String): Flow<List<HistoryEntry>> =
+        dao.observeHistory(queueItemId).map { entries -> entries.map { it.toDomain() } }
 
     override suspend fun createItem(
         title: String,
