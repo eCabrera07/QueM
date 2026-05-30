@@ -3,9 +3,11 @@ package com.quem.app
 import android.content.Context
 import androidx.room.Room
 import com.quem.core.time.SystemClock
+import com.quem.data.local.QueueDao
 import com.quem.data.local.QueMDatabase
 import com.quem.data.repository.QueueRepository
 import com.quem.data.repository.RoomQueueRepository
+import com.quem.drive.DriveAccountPreferences
 import com.quem.drive.DrivePickerRepository
 import com.quem.drive.GoogleDriveConnectionRepository
 import java.util.UUID
@@ -17,13 +19,19 @@ class AppDependencies(context: Context) {
         DATABASE_NAME
     ).build()
 
+    val dao: QueueDao = database.queueDao()
+
+    private val driveAccountPreferences = DriveAccountPreferences(context.applicationContext)
+
     val queueRepository: QueueRepository = RoomQueueRepository(
-        dao = database.queueDao(),
+        dao = dao,
         clock = SystemClock(),
         idProvider = { UUID.randomUUID().toString() }
     )
 
-    val driveConnectionRepository: GoogleDriveConnectionRepository = GoogleDriveConnectionRepository()
+    val driveConnectionRepository: GoogleDriveConnectionRepository = GoogleDriveConnectionRepository(
+        driveAccountPreferences = driveAccountPreferences
+    )
 
     val drivePickerRepository: DrivePickerRepository = DrivePickerRepository(
         contentResolver = context.applicationContext.contentResolver

@@ -5,7 +5,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class GoogleDriveConnectionRepository(
-    initialAuthorizationCoordinator: DriveAuthorizationCoordinator? = null
+    initialAuthorizationCoordinator: DriveAuthorizationCoordinator? = null,
+    private val driveAccountPreferences: DriveAccountPreferences? = null
 ) : DriveConnectionRepository {
     private val mutableState = MutableStateFlow<DriveConnectionState>(DriveConnectionState.Disconnected)
     private var authorizationCoordinator: DriveAuthorizationCoordinator? = initialAuthorizationCoordinator
@@ -37,6 +38,7 @@ class GoogleDriveConnectionRepository(
     }
 
     override fun disconnect() {
+        driveAccountPreferences?.clear()
         mutableState.value = DriveConnectionState.Disconnected
     }
 
@@ -59,6 +61,7 @@ class GoogleDriveConnectionRepository(
     }
 
     private fun connect(grant: DriveAuthorizationGrant) {
+        driveAccountPreferences?.save(grant.accountEmail)
         mutableState.value = DriveConnectionState.Connected(
             DriveAccount(email = grant.accountEmail)
         )
