@@ -544,7 +544,9 @@ private class FakeQueueRepository : QueueRepository {
     }
 
     override fun observeHistory(queueItemId: String): Flow<List<HistoryEntry>> =
-        historyEntries.map { entries -> entries.filter { it.queueItemId == queueItemId } }
+        historyEntries.map { entries ->
+            entries.filter { it.queueItemId == queueItemId }.sortedByDescending { it.createdAt }
+        }
 
     fun emitHistory(vararg entries: HistoryEntry) {
         historyEntries.value = entries.toList()

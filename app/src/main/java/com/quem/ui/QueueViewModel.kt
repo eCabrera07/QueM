@@ -309,6 +309,7 @@ private fun String?.toLocalDateOrNull(): LocalDate? {
     return runCatching { LocalDate.parse(normalized) }.getOrNull()
 }
 
+// internal (not private) so QueueViewModelTest can call it directly without instrumentation
 internal fun HistoryEntry.toDisplayString(now: Instant): String {
     val elapsed = Duration.between(createdAt, now)
     val timeLabel = when {
