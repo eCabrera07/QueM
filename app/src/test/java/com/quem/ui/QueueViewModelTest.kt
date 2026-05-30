@@ -4,10 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
 import com.quem.core.model.HistoryEntry
+import com.quem.core.model.HistoryKind
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
+import com.quem.core.time.FixedClock
 import com.quem.data.repository.QueueRepository
 import com.quem.drive.DisconnectedDriveConnectionRepository
 import kotlinx.coroutines.Dispatchers
@@ -354,6 +356,74 @@ class QueueViewModelTest {
         assertEquals("item-1", viewModel.selectedItem.value?.id)
     }
 
+    @Test
+    fun selectedItemHistoryIsEmptyWhenNoEntriesExist() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+        val viewModel = QueueViewModel(
+            repository = repository,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z"))
+        )
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+
+        assertEquals(emptyList<String>(), viewModel.selectedItem.value?.history)
+    }
+
+    @Test
+    fun selectedItemHistoryShowsFormattedEntriesNewestFirst() = runTest {
+        val now = Instant.parse("2026-05-23T14:00:00Z")
+        val repository = FakeQueueRepository()
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+        repository.emitHistory(
+            historyEntry(id = "h-2", queueItemId = "item-1", message = "Marked as Done",
+                createdAt = Instant.parse("2026-05-23T12:00:00Z")),   // 2 hours ago
+            historyEntry(id = "h-1", queueItemId = "item-1", message = "Created",
+                createdAt = Instant.parse("2026-05-23T11:00:00Z"))    // 3 hours ago
+        )
+        val viewModel = QueueViewModel(
+            repository = repository,
+            clock = FixedClock(now)
+        )
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("2 hours ago · Marked as Done", "3 hours ago · Created"),
+            viewModel.selectedItem.value?.history
+        )
+    }
+
+    @Test
+    fun historyToDisplayStringFormatsRelativeTime() {
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+
+        val justNow = historyEntry(createdAt = now.minusSeconds(30))
+        assertEquals("just now · Created", justNow.toDisplayString(now))
+
+        val minutesAgo = historyEntry(createdAt = now.minusSeconds(5 * 60))
+        assertEquals("5 minutes ago · Created", minutesAgo.toDisplayString(now))
+
+        val oneMinuteAgo = historyEntry(createdAt = now.minusSeconds(60))
+        assertEquals("1 minute ago · Created", oneMinuteAgo.toDisplayString(now))
+
+        val hoursAgo = historyEntry(createdAt = now.minusSeconds(3 * 3600))
+        assertEquals("3 hours ago · Created", hoursAgo.toDisplayString(now))
+
+        val oneHourAgo = historyEntry(createdAt = now.minusSeconds(3600))
+        assertEquals("1 hour ago · Created", oneHourAgo.toDisplayString(now))
+
+        val daysAgo = historyEntry(createdAt = now.minusSeconds(2 * 86400))
+        assertEquals("2 days ago · Created", daysAgo.toDisplayString(now))
+
+        val oneDayAgo = historyEntry(createdAt = now.minusSeconds(86400))
+        assertEquals("1 day ago · Created", oneDayAgo.toDisplayString(now))
+    }
+
     private fun TestScope.collectSelectedItem(viewModel: QueueViewModel) {
         backgroundScope.launch { viewModel.selectedItem.collect() }
         runCurrent()
@@ -381,6 +451,7 @@ class MainDispatcherRule(
 private class FakeQueueRepository : QueueRepository {
     val items = MutableStateFlow<List<QueueItem>>(emptyList())
     private val attachments = MutableStateFlow<List<Attachment>>(emptyList())
+    private val historyEntries = MutableStateFlow<List<HistoryEntry>>(emptyList())
 
     private var nextId = 1
     private var nextAttachmentId = 1
@@ -473,7 +544,11 @@ private class FakeQueueRepository : QueueRepository {
     }
 
     override fun observeHistory(queueItemId: String): Flow<List<HistoryEntry>> =
-        flowOf(emptyList())
+        historyEntries.map { entries -> entries.filter { it.queueItemId == queueItemId } }
+
+    fun emitHistory(vararg entries: HistoryEntry) {
+        historyEntries.value = entries.toList()
+    }
 
     private fun addAttachment(
         queueItemId: String,
@@ -521,4 +596,18 @@ private fun queueItem(
     completedAt = null,
     dismissedAt = null,
     syncState = SyncState.PENDING_SYNC
+)
+
+private fun historyEntry(
+    id: String = "h-1",
+    queueItemId: String = "item-1",
+    message: String = "Created",
+    kind: HistoryKind = HistoryKind.STATUS_CHANGE,
+    createdAt: Instant = Instant.parse("2026-05-23T12:00:00Z")
+) = HistoryEntry(
+    id = id,
+    queueItemId = queueItemId,
+    message = message,
+    kind = kind,
+    createdAt = createdAt
 )

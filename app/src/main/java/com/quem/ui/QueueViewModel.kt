@@ -6,13 +6,18 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.quem.core.model.HistoryEntry
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
+import com.quem.core.time.Clock
+import com.quem.core.time.SystemClock
 import com.quem.data.repository.QueueRepository
 import com.quem.drive.DisconnectedDriveConnectionRepository
 import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.DriveConnectionState
+import java.time.Duration
+import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +42,8 @@ data class QueueItemDetailUi(
 class QueueViewModel(
     private val repository: QueueRepository,
     private val driveConnectionRepository: DriveConnectionRepository = DisconnectedDriveConnectionRepository(),
-    private val savedStateHandle: SavedStateHandle = SavedStateHandle()
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
+    private val clock: Clock = SystemClock()
 ) : ViewModel() {
     val selectedStatus: StateFlow<QueueStatus> =
         savedStateHandle.getStateFlow(KEY_SELECTED_STATUS, QueueStatus.QUEUED)
@@ -84,9 +90,14 @@ class QueueViewModel(
                 } else {
                     combine(
                         repository.observeItem(id),
-                        repository.observeAttachments(id)
-                    ) { item, attachments ->
-                        item?.toDetailUi(attachments = attachments.map { it.displayName })
+                        repository.observeAttachments(id),
+                        repository.observeHistory(id)
+                    ) { item, attachments, history ->
+                        val now = clock.now()
+                        item?.toDetailUi(
+                            attachments = attachments.map { it.displayName },
+                            history = history.map { it.toDisplayString(now) }
+                        )
                     }
                 }
             }
@@ -276,13 +287,13 @@ private fun QueueItem.toListItemUi(attachmentCount: Int) = QueueListItemUi(
     attachmentSummary = attachmentCount.toAttachmentSummary()
 )
 
-private fun QueueItem.toDetailUi(attachments: List<String>) = QueueItemDetailUi(
+private fun QueueItem.toDetailUi(attachments: List<String>, history: List<String>) = QueueItemDetailUi(
     id = id,
     title = title,
     description = description,
     dueDateLabel = dueDate?.toString(),
     attachments = attachments,
-    history = emptyList()
+    history = history
 )
 
 private fun Int.toAttachmentSummary(): String =
@@ -296,4 +307,24 @@ private fun String?.toPriorityOrNull(): Priority? {
 private fun String?.toLocalDateOrNull(): LocalDate? {
     val normalized = this?.trim()?.takeIf { it.isNotEmpty() } ?: return null
     return runCatching { LocalDate.parse(normalized) }.getOrNull()
+}
+
+internal fun HistoryEntry.toDisplayString(now: Instant): String {
+    val elapsed = Duration.between(createdAt, now)
+    val timeLabel = when {
+        elapsed.seconds < 60 -> "just now"
+        elapsed.toMinutes() < 60 -> {
+            val m = elapsed.toMinutes()
+            if (m == 1L) "1 minute ago" else "$m minutes ago"
+        }
+        elapsed.toHours() < 24 -> {
+            val h = elapsed.toHours()
+            if (h == 1L) "1 hour ago" else "$h hours ago"
+        }
+        else -> {
+            val d = elapsed.toDays()
+            if (d == 1L) "1 day ago" else "$d days ago"
+        }
+    }
+    return "$timeLabel · $message"
 }
