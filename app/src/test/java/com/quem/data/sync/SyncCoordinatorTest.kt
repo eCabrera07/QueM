@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.IOException
+import kotlin.test.assertFailsWith
 import java.time.Instant
 
 class SyncCoordinatorTest {
@@ -60,11 +61,7 @@ class SyncCoordinatorTest {
         val driveGateway = FakeCoordinatorDriveGateway(throwOnUpload = IOException("Network error"))
         val coordinator = SyncCoordinator(dao, SyncManager(driveGateway), FixedClock(now))
 
-        try {
-            coordinator.sync()
-        } catch (_: IOException) {
-            // expected — let it propagate to the worker
-        }
+        assertFailsWith<IOException> { coordinator.sync() }
 
         assertEquals(0, dao.markItemsSyncedCalls)
         assertEquals(0, dao.markAttachmentsSyncedCalls)
