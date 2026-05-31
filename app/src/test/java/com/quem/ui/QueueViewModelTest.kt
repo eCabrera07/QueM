@@ -467,6 +467,41 @@ class QueueViewModelTest {
         assertEquals(SyncIndicator.PENDING, viewModel.items.value.single().syncIndicator)
     }
 
+    @Test
+    fun archiveResultsShowAllArchivedItemsWhenQueryIsBlank() = runTest {
+        val repository = FakeQueueRepository()
+        repository.items.value = listOf(
+            queueItem(id = "done-1", title = "Done item", description = null, status = QueueStatus.DONE),
+            queueItem(id = "dismissed-1", title = "Dismissed item", description = null, status = QueueStatus.DISMISSED),
+            queueItem(id = "queued-1", title = "Queued item", description = null, status = QueueStatus.QUEUED)
+        )
+        val viewModel = QueueViewModel(repository)
+        collectArchiveResults(viewModel)
+
+        runCurrent()
+
+        assertEquals(
+            setOf("done-1", "dismissed-1"),
+            viewModel.archiveResults.value.map { it.id }.toSet()
+        )
+    }
+
+    @Test
+    fun archiveResultsFilterByQueryString() = runTest {
+        val repository = FakeQueueRepository()
+        repository.items.value = listOf(
+            queueItem(id = "contract-1", title = "Read contract", description = null, status = QueueStatus.DONE),
+            queueItem(id = "other-1", title = "Call accountant", description = null, status = QueueStatus.DONE)
+        )
+        val viewModel = QueueViewModel(repository)
+        collectArchiveResults(viewModel)
+
+        viewModel.setArchiveQuery("contract")
+        advanceUntilIdle()
+
+        assertEquals(listOf("contract-1"), viewModel.archiveResults.value.map { it.id })
+    }
+
     private fun TestScope.collectSelectedItem(viewModel: QueueViewModel) {
         backgroundScope.launch { viewModel.selectedItem.collect() }
         runCurrent()
@@ -474,6 +509,11 @@ class QueueViewModelTest {
 
     private fun TestScope.collectItems(viewModel: QueueViewModel) {
         backgroundScope.launch { viewModel.items.collect() }
+        runCurrent()
+    }
+
+    private fun TestScope.collectArchiveResults(viewModel: QueueViewModel) {
+        backgroundScope.launch { viewModel.archiveResults.collect() }
         runCurrent()
     }
 }
@@ -503,7 +543,17 @@ private class FakeQueueRepository : QueueRepository {
         items.map { queueItems -> queueItems.filter { it.status == status } }
 
     override fun searchArchive(query: String): Flow<List<QueueItem>> =
-        flowOf(emptyList())
+        items.map { queueItems ->
+            val trimmed = query.trim()
+            queueItems
+                .filter { it.status == QueueStatus.DONE || it.status == QueueStatus.DISMISSED }
+                .filter { item ->
+                    trimmed.isEmpty() ||
+                    item.title.contains(trimmed, ignoreCase = true) ||
+                    item.description?.contains(trimmed, ignoreCase = true) == true
+                }
+                .sortedByDescending { it.updatedAt }
+        }
 
     override fun observeItem(id: String): Flow<QueueItem?> =
         items.map { queueItems -> queueItems.singleOrNull { it.id == id } }

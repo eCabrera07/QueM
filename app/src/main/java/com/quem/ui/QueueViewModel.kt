@@ -111,6 +111,31 @@ class QueueViewModel(
                 initialValue = null
             )
 
+    val isShowingArchive: StateFlow<Boolean> =
+        savedStateHandle.getStateFlow(KEY_IS_SHOWING_ARCHIVE, false)
+
+    val archiveQuery: StateFlow<String> =
+        savedStateHandle.getStateFlow(KEY_ARCHIVE_QUERY, "")
+
+    val archiveResults: StateFlow<List<QueueListItemUi>> =
+        archiveQuery
+            .flatMapLatest { query -> repository.searchArchive(query) }
+            .flatMapLatest { items ->
+                if (items.isEmpty()) flowOf(emptyList())
+                else combine(
+                    items.map { item ->
+                        repository.observeAttachments(item.id).map { attachments ->
+                            item.toListItemUi(attachmentCount = attachments.size)
+                        }
+                    }
+                ) { results -> results.toList() }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
+                initialValue = emptyList()
+            )
+
     fun selectStatus(status: QueueStatus) {
         savedStateHandle[KEY_SELECTED_STATUS] = status
     }
@@ -137,6 +162,27 @@ class QueueViewModel(
 
     fun closeSettings() {
         savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
+    }
+
+    fun showArchive() {
+        savedStateHandle[KEY_ARCHIVE_QUERY]       = ""
+        savedStateHandle[KEY_IS_SHOWING_ARCHIVE]  = true
+        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
+        savedStateHandle[KEY_SELECTED_ITEM_ID]    = null
+        savedStateHandle[KEY_IS_CREATING_ITEM]    = false
+    }
+
+    fun closeArchive() {
+        savedStateHandle[KEY_IS_SHOWING_ARCHIVE] = false
+    }
+
+    fun selectArchiveItem(id: String) {
+        savedStateHandle[KEY_IS_SHOWING_ARCHIVE] = false
+        savedStateHandle[KEY_SELECTED_ITEM_ID]   = id
+    }
+
+    fun setArchiveQuery(query: String) {
+        savedStateHandle[KEY_ARCHIVE_QUERY] = query
     }
 
     fun requestDriveSignIn() {
@@ -280,6 +326,8 @@ class QueueViewModel(
         private const val KEY_IS_CREATING_ITEM = "isCreatingItem"
         private const val KEY_IS_SHOWING_SETTINGS = "isShowingSettings"
         private const val KEY_SELECTED_ITEM_ID = "selectedItemId"
+        private const val KEY_IS_SHOWING_ARCHIVE = "isShowingArchive"
+        private const val KEY_ARCHIVE_QUERY      = "archiveQuery"
     }
 }
 
