@@ -47,7 +47,8 @@ fun QueueListScreen(
     onStatusSelected: (QueueStatus) -> Unit,
     onItemSelected: (String) -> Unit,
     onCreateItem: () -> Unit,
-    onOpenSettings: () -> Unit = {}
+    onOpenSettings: () -> Unit = {},
+    onOpenArchive: () -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -68,6 +69,9 @@ fun QueueListScreen(
             ) {
                 OutlinedButton(onClick = onOpenSettings) {
                     Text("Settings")
+                }
+                OutlinedButton(onClick = onOpenArchive) {
+                    Text("Archive")
                 }
                 Button(onClick = onCreateItem) {
                     Text("New")
@@ -96,7 +100,7 @@ fun QueueListScreen(
 }
 
 @Composable
-private fun QueueListItemCard(
+internal fun QueueListItemCard(
     item: QueueListItemUi,
     onClick: () -> Unit
 ) {
