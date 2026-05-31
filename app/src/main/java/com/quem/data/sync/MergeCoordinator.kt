@@ -37,7 +37,8 @@ class MergeCoordinator(private val dao: QueueDao) {
         val localIds = dao.allHistory().map { it.id }.toSet()
         for (remote in remoteHistory) {
             if (remote.id !in localIds) {
-                runCatching { dao.upsertHistoryEntry(remote.toEntity()) }
+                val entity = runCatching { remote.toEntity() }.getOrNull() ?: continue
+                dao.upsertHistoryEntry(entity)
             }
         }
     }
