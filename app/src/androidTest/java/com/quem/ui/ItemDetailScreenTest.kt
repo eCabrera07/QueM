@@ -280,4 +280,45 @@ class ItemDetailScreenTest {
 
         compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsNotDisplayed()
     }
+
+    @Test
+    fun priorityLabelDisplayedWhenSet() {
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                priorityLabel = "HIGH",
+                attachments = emptyList(),
+                history = emptyList(),
+                onDismiss = {},
+                onDone = {},
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("HIGH").assertIsDisplayed()
+    }
+
+    @Test
+    fun editButtonInvokesCallback() {
+        var edited = false
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList(),
+                onDismiss = {},
+                onDone = {},
+                onBack = {},
+                onEdit = { edited = true }
+            )
+        }
+
+        compose.onNodeWithText("Edit").performClick()
+
+        assertTrue(edited)
+    }
 }

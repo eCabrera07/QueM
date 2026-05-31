@@ -14,6 +14,7 @@ import com.quem.drive.DrivePickerCoordinator
 import com.quem.drive.NoOpDrivePickerCoordinator
 import com.quem.ui.ArchiveSearchScreen
 import com.quem.ui.CreateItemScreen
+import com.quem.ui.EditItemScreen
 import com.quem.ui.ItemDetailScreen
 import com.quem.ui.QueueListScreen
 import com.quem.ui.QueueViewModel
@@ -34,6 +35,7 @@ fun QueMApp(
     )
     val selectedStatus by viewModel.selectedStatus.collectAsStateWithLifecycle()
     val isCreatingItem by viewModel.isCreatingItem.collectAsStateWithLifecycle()
+    val isEditingItem by viewModel.isEditingItem.collectAsStateWithLifecycle()
     val isShowingSettings by viewModel.isShowingSettings.collectAsStateWithLifecycle()
     val isShowingArchive by viewModel.isShowingArchive.collectAsStateWithLifecycle()
     val items by viewModel.items.collectAsStateWithLifecycle()
@@ -63,6 +65,16 @@ fun QueMApp(
             },
             onCancel = viewModel::cancelCreate
         )
+    } else if (isEditingItem) {
+        val item = selectedItem ?: return
+        EditItemScreen(
+            initialTitle       = item.title,
+            initialDescription = item.description ?: "",
+            initialPriority    = item.priorityLabel ?: "",
+            initialDueDate     = item.dueDateLabel ?: "",
+            onSave             = viewModel::saveEdit,
+            onCancel           = viewModel::cancelEdit
+        )
     } else if (isShowingArchive) {
         ArchiveSearchScreen(
             query = archiveQuery,
@@ -85,12 +97,14 @@ fun QueMApp(
         val item = selectedItem ?: return
         val driveConnected = driveConnectionState is DriveConnectionState.Connected
         ItemDetailScreen(
-            title = item.title,
-            description = item.description,
-            dueDateLabel = item.dueDateLabel,
-            attachments = item.attachments,
-            history = item.history,
+            title         = item.title,
+            description   = item.description,
+            dueDateLabel  = item.dueDateLabel,
+            priorityLabel = item.priorityLabel,
+            attachments   = item.attachments,
+            history       = item.history,
             syncIndicator = item.syncIndicator,
+            onEdit        = viewModel::startEdit,
             onAddTextAttachment = viewModel::addTextAttachment,
             onAddLinkAttachment = viewModel::addLinkAttachment,
             driveActionsEnabled = driveConnected,
@@ -116,8 +130,8 @@ fun QueMApp(
                 }
             },
             onDismiss = viewModel::dismissSelectedItem,
-            onDone = viewModel::doneSelectedItem,
-            onBack = viewModel::backToList
+            onDone    = viewModel::doneSelectedItem,
+            onBack    = viewModel::backToList
         )
     }
 }

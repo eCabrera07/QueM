@@ -43,10 +43,12 @@ fun ItemDetailScreen(
     dueDateLabel: String?,
     attachments: List<String>,
     history: List<String>,
+    priorityLabel: String? = null,
     syncIndicator: SyncIndicator? = null,
     onDismiss: () -> Unit,
     onDone: () -> Unit,
     onBack: () -> Unit,
+    onEdit: () -> Unit = {},
     onAddTextAttachment: (title: String, text: String) -> Unit = { _, _ -> },
     onAddLinkAttachment: (title: String, url: String) -> Unit = { _, _ -> },
     driveActionsEnabled: Boolean = false,
@@ -84,8 +86,12 @@ fun ItemDetailScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item {
-            TextButton(onClick = onBack) {
-                Text("Back")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                TextButton(onClick = onBack) { Text("Back") }
+                TextButton(onClick = onEdit) { Text("Edit") }
             }
         }
 
@@ -105,6 +111,13 @@ fun ItemDetailScreen(
                         text = body,
                         modifier = Modifier.fillMaxWidth(),
                         style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+                priorityLabel?.let { label ->
+                    Text(
+                        text = label,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
                 Text(
