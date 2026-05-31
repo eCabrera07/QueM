@@ -31,7 +31,7 @@ data class QueueListItemUi(
     val priorityLabel: String?,
     val dueDateLabel: String?,
     val attachmentSummary: String,
-    val syncIndicator: SyncIndicator?
+    val syncIndicator: SyncIndicator? = null
 )
 
 @Composable
