@@ -10,6 +10,7 @@ import com.quem.core.model.HistoryEntry
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
+import com.quem.core.model.SyncState
 import com.quem.core.time.Clock
 import com.quem.core.time.SystemClock
 import com.quem.data.repository.QueueRepository
@@ -29,13 +30,16 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
+enum class SyncIndicator { PENDING, SYNCING, ERROR }
+
 data class QueueItemDetailUi(
     val id: String,
     val title: String,
     val description: String?,
     val dueDateLabel: String?,
     val attachments: List<String>,
-    val history: List<String>
+    val history: List<String>,
+    val syncIndicator: SyncIndicator?
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -280,24 +284,33 @@ class QueueViewModel(
 }
 
 private fun QueueItem.toListItemUi(attachmentCount: Int) = QueueListItemUi(
-    id = id,
-    title = title,
-    priorityLabel = priority?.name,
-    dueDateLabel = dueDate?.toString(),
-    attachmentSummary = attachmentCount.toAttachmentSummary()
+    id                = id,
+    title             = title,
+    priorityLabel     = priority?.name,
+    dueDateLabel      = dueDate?.toString(),
+    attachmentSummary = attachmentCount.toAttachmentSummary(),
+    syncIndicator     = syncState.toIndicator()
 )
 
 private fun QueueItem.toDetailUi(attachments: List<String>, history: List<String>) = QueueItemDetailUi(
-    id = id,
-    title = title,
-    description = description,
-    dueDateLabel = dueDate?.toString(),
-    attachments = attachments,
-    history = history
+    id            = id,
+    title         = title,
+    description   = description,
+    dueDateLabel  = dueDate?.toString(),
+    attachments   = attachments,
+    history       = history,
+    syncIndicator = syncState.toIndicator()
 )
 
 private fun Int.toAttachmentSummary(): String =
     if (this == 1) "1 attachment" else "$this attachments"
+
+private fun SyncState.toIndicator(): SyncIndicator? = when (this) {
+    SyncState.SYNCED       -> null
+    SyncState.PENDING_SYNC -> SyncIndicator.PENDING
+    SyncState.SYNCING      -> SyncIndicator.SYNCING
+    SyncState.ERROR        -> SyncIndicator.ERROR
+}
 
 private fun String?.toPriorityOrNull(): Priority? {
     val normalized = this?.trim()?.takeIf { it.isNotEmpty() } ?: return null

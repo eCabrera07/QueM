@@ -424,6 +424,49 @@ class QueueViewModelTest {
         assertEquals("1 day ago · Created", oneDayAgo.toDisplayString(now))
     }
 
+    @Test
+    fun selectedItemHasPendingIndicatorWhenItemIsPendingSync() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+        // createItem() produces a PENDING_SYNC item via the queueItem() helper
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+
+        assertEquals(SyncIndicator.PENDING, viewModel.selectedItem.value?.syncIndicator)
+    }
+
+    @Test
+    fun selectedItemHasNullIndicatorWhenItemIsSynced() = runTest {
+        val repository = FakeQueueRepository()
+        // Insert a SYNCED item directly — createItem() always creates PENDING_SYNC
+        repository.items.value = listOf(
+            queueItem(id = "item-1", title = "Read contract", description = null,
+                status = QueueStatus.QUEUED, syncState = SyncState.SYNCED)
+        )
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+
+        assertNull(viewModel.selectedItem.value?.syncIndicator)
+    }
+
+    @Test
+    fun listItemsHavePendingIndicatorWhenItemIsPendingSync() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+        val viewModel = QueueViewModel(repository)
+        collectItems(viewModel)
+
+        runCurrent()
+
+        assertEquals(SyncIndicator.PENDING, viewModel.items.value.single().syncIndicator)
+    }
+
     private fun TestScope.collectSelectedItem(viewModel: QueueViewModel) {
         backgroundScope.launch { viewModel.selectedItem.collect() }
         runCurrent()
@@ -583,7 +626,8 @@ private fun queueItem(
     description: String?,
     status: QueueStatus,
     priority: Priority? = null,
-    dueDate: LocalDate? = null
+    dueDate: LocalDate? = null,
+    syncState: SyncState = SyncState.PENDING_SYNC
 ) = QueueItem(
     id = id,
     driveId = null,
@@ -597,7 +641,7 @@ private fun queueItem(
     updatedAt = Instant.parse("2026-05-23T12:00:00Z"),
     completedAt = null,
     dismissedAt = null,
-    syncState = SyncState.PENDING_SYNC
+    syncState = syncState
 )
 
 private fun historyEntry(
