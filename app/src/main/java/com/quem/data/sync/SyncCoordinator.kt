@@ -7,9 +7,17 @@ import com.quem.data.local.toDomain
 class SyncCoordinator(
     private val dao: QueueDao,
     private val syncManager: SyncManager,
-    private val clock: Clock
+    private val clock: Clock,
+    private val mergeCoordinator: MergeCoordinator = MergeCoordinator(dao)
 ) {
     suspend fun sync() {
+        // 1. Download remote snapshot and merge into local DB
+        val remoteSnapshot = syncManager.download()
+        if (remoteSnapshot != null) {
+            mergeCoordinator.merge(remoteSnapshot)
+        }
+
+        // 2. Upload merged local state
         val items       = dao.allItems().map { it.toDomain() }
         val attachments = dao.allAttachments().map { it.toDomain() }
         val history     = dao.allHistory().map { it.toDomain() }
@@ -23,6 +31,7 @@ class SyncCoordinator(
 
         syncManager.upload(snapshot)
 
+        // 3. Mark synced
         dao.markItemsSynced()
         dao.markAttachmentsSynced()
     }

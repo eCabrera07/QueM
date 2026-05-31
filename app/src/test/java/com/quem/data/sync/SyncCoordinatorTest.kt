@@ -16,6 +16,7 @@ import org.junit.Test
 import java.io.IOException
 import kotlin.test.assertFailsWith
 import java.time.Instant
+import java.time.LocalDate
 
 class SyncCoordinatorTest {
 
@@ -78,12 +79,53 @@ class SyncCoordinatorTest {
         assertEquals("QueM", driveGateway.lastFolderName)
         assertEquals("queue-metadata.json", driveGateway.lastFileName)
     }
+
+    @Test
+    fun syncMergesDownloadedDataBeforeUploading() = runTest {
+        val now = Instant.parse("2026-05-29T12:00:00Z")
+        val dao = FakeCoordinatorDao()  // starts empty
+        val serverSnapshot = MetadataSnapshot(
+            version = 1,
+            exportedAt = now.toString(),
+            items = listOf(metadataItem("server-item", now)),
+            attachments = emptyList(),
+            history = emptyList()
+        )
+        val driveGateway = FakeCoordinatorDriveGateway(
+            downloadContent = MetadataSerializer.encode(serverSnapshot)
+        )
+        val coordinator = SyncCoordinator(dao, SyncManager(driveGateway), FixedClock(now))
+
+        coordinator.sync()
+
+        val uploadedSnapshot = MetadataSerializer.decode(driveGateway.uploadedContents.single())
+        assertEquals(1, uploadedSnapshot.items.size)
+        assertEquals("server-item", uploadedSnapshot.items.single().id)
+    }
+
+    @Test
+    fun syncSkipsMergeAndUploadsNormallyWhenNoSnapshotOnDrive() = runTest {
+        val now = Instant.parse("2026-05-29T12:00:00Z")
+        val dao = FakeCoordinatorDao().apply {
+            items = listOf(queueItemEntity(id = "local-item", now = now))
+        }
+        // downloadContent = null (default) → no file on Drive
+        val driveGateway = FakeCoordinatorDriveGateway()
+        val coordinator = SyncCoordinator(dao, SyncManager(driveGateway), FixedClock(now))
+
+        coordinator.sync()
+
+        val uploadedSnapshot = MetadataSerializer.decode(driveGateway.uploadedContents.single())
+        assertEquals(1, uploadedSnapshot.items.size)
+        assertEquals("local-item", uploadedSnapshot.items.single().id)
+    }
 }
 
 // ---- Fakes ----
 
 private class FakeCoordinatorDriveGateway(
-    private val throwOnUpload: Exception? = null
+    private val throwOnUpload: Exception? = null,
+    private val downloadContent: String? = null
 ) : DriveGateway {
     val uploadedContents = mutableListOf<String>()
     var lastFolderName: String? = null
@@ -96,33 +138,59 @@ private class FakeCoordinatorDriveGateway(
         uploadedContents.add(content)
     }
 
-    override suspend fun downloadTextFile(folderName: String, fileName: String): String? = null
+    override suspend fun downloadTextFile(folderName: String, fileName: String): String? =
+        downloadContent
 }
 
 private class FakeCoordinatorDao : QueueDao {
-    var items: List<QueueItemEntity> = emptyList()
-    var attachments: List<AttachmentEntity> = emptyList()
-    var history: List<HistoryEntryEntity> = emptyList()
+    private val _items       = mutableListOf<QueueItemEntity>()
+    private val _attachments = mutableListOf<AttachmentEntity>()
+    private val _history     = mutableListOf<HistoryEntryEntity>()
+
+    var items: List<QueueItemEntity>
+        get() = _items.toList()
+        set(value) { _items.clear(); _items.addAll(value) }
+
+    var attachments: List<AttachmentEntity>
+        get() = _attachments.toList()
+        set(value) { _attachments.clear(); _attachments.addAll(value) }
+
+    var history: List<HistoryEntryEntity>
+        get() = _history.toList()
+        set(value) { _history.clear(); _history.addAll(value) }
+
     var markItemsSyncedCalls = 0
     var markAttachmentsSyncedCalls = 0
 
-    override suspend fun allItems(): List<QueueItemEntity> = items
-    override suspend fun allAttachments(): List<AttachmentEntity> = attachments
-    override suspend fun allHistory(): List<HistoryEntryEntity> = history
-    override suspend fun markItemsSynced() { markItemsSyncedCalls++ }
+    override suspend fun allItems(): List<QueueItemEntity>        = _items.toList()
+    override suspend fun allAttachments(): List<AttachmentEntity> = _attachments.toList()
+    override suspend fun allHistory(): List<HistoryEntryEntity>   = _history.toList()
+    override suspend fun markItemsSynced()       { markItemsSyncedCalls++ }
     override suspend fun markAttachmentsSynced() { markAttachmentsSyncedCalls++ }
 
-    // Unused — SyncCoordinator does not call these
-    override fun observeItemsByStatus(status: String): Flow<List<QueueItemEntity>> = throw UnsupportedOperationException()
-    override fun searchItems(statuses: List<String>, query: String): Flow<List<QueueItemEntity>> = throw UnsupportedOperationException()
+    override suspend fun upsertItem(item: QueueItemEntity) {
+        _items.removeAll { it.id == item.id }
+        _items.add(item)
+    }
+
+    override suspend fun upsertAttachment(attachment: AttachmentEntity) {
+        _attachments.removeAll { it.id == attachment.id }
+        _attachments.add(attachment)
+    }
+
+    override suspend fun upsertHistoryEntry(entry: HistoryEntryEntity) {
+        if (_history.none { it.id == entry.id }) _history.add(entry)
+    }
+
+    // Unused — throw to detect unintended calls
+    override fun observeItemsByStatus(s: String): Flow<List<QueueItemEntity>> = throw UnsupportedOperationException()
+    override fun searchItems(s: List<String>, q: String): Flow<List<QueueItemEntity>> = throw UnsupportedOperationException()
     override fun observeItem(id: String): Flow<QueueItemEntity?> = throw UnsupportedOperationException()
     override suspend fun pendingItems(): List<QueueItemEntity> = throw UnsupportedOperationException()
-    override suspend fun upsertItem(item: QueueItemEntity) = throw UnsupportedOperationException()
     override suspend fun updateStatus(id: String, status: String, updatedAt: Instant, completedAt: Instant?, dismissedAt: Instant?): Int = throw UnsupportedOperationException()
-    override suspend fun upsertAttachment(attachment: AttachmentEntity) = throw UnsupportedOperationException()
-    override suspend fun upsertHistoryEntry(entry: HistoryEntryEntity) = throw UnsupportedOperationException()
-    override fun observeAttachments(queueItemId: String): Flow<List<AttachmentEntity>> = throw UnsupportedOperationException()
-    override fun observeHistory(queueItemId: String): Flow<List<HistoryEntryEntity>> = throw UnsupportedOperationException()
+    override suspend fun updateItemFields(id: String, title: String, description: String?, priority: String?, dueDate: LocalDate?, updatedAt: Instant): Int = throw UnsupportedOperationException()
+    override fun observeAttachments(id: String): Flow<List<AttachmentEntity>> = throw UnsupportedOperationException()
+    override fun observeHistory(id: String): Flow<List<HistoryEntryEntity>> = throw UnsupportedOperationException()
 }
 
 // ---- Builders ----
@@ -163,4 +231,12 @@ private fun historyEntity(id: String, queueItemId: String, now: Instant) = Histo
     message     = "Created",
     kind        = HistoryKind.STATUS_CHANGE.name,
     createdAt   = now
+)
+
+private fun metadataItem(id: String, updatedAt: Instant) = MetadataQueueItem(
+    id = id, driveId = null, title = "Item $id",
+    description = null, status = "QUEUED", priority = null,
+    dueDate = null, tags = emptyList(),
+    createdAt = updatedAt.toString(), updatedAt = updatedAt.toString(),
+    completedAt = null, dismissedAt = null
 )
