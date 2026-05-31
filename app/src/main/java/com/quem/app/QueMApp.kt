@@ -71,7 +71,7 @@ fun QueMApp(
             initialTitle       = item.title,
             initialDescription = item.description ?: "",
             initialPriority    = item.priorityLabel ?: "",
-            initialDueDate     = item.dueDateLabel ?: "",
+            initialDueDate     = item.dueDateIso ?: "",
             onSave             = viewModel::saveEdit,
             onCancel           = viewModel::cancelEdit
         )

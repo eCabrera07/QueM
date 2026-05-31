@@ -38,6 +38,7 @@ data class QueueItemDetailUi(
     val description: String?,
     val priorityLabel: String?,
     val dueDateLabel: String?,
+    val dueDateIso: String?,    // ISO-8601 (e.g. "2026-06-01") — use for pre-populating edit forms
     val attachments: List<String>,
     val history: List<String>,
     val syncIndicator: SyncIndicator?
@@ -376,6 +377,7 @@ private fun QueueItem.toDetailUi(attachments: List<String>, history: List<String
     description   = description,
     priorityLabel = priority?.name,
     dueDateLabel  = dueDate?.toString(),
+    dueDateIso    = dueDate?.toString(),
     attachments   = attachments,
     history       = history,
     syncIndicator = syncState.toIndicator()
