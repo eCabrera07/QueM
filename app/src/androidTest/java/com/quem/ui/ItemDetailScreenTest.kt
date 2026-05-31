@@ -218,6 +218,44 @@ class ItemDetailScreenTest {
     }
 
     @Test
+    fun syncIndicatorLabelDisplayedWhenPending() {
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList(),
+                syncIndicator = SyncIndicator.PENDING,
+                onDismiss = {},
+                onDone = {},
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("Pending sync").assertIsDisplayed()
+    }
+
+    @Test
+    fun syncErrorLabelDisplayedWhenError() {
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList(),
+                syncIndicator = SyncIndicator.ERROR,
+                onDismiss = {},
+                onDone = {},
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("Sync error").assertIsDisplayed()
+    }
+
+    @Test
     fun driveSignInMessageClearsWhenDriveBecomesAvailable() {
         var driveActionsEnabled by mutableStateOf(false)
 

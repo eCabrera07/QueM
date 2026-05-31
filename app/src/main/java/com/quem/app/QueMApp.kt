@@ -77,6 +77,7 @@ fun QueMApp(
             dueDateLabel = item.dueDateLabel,
             attachments = item.attachments,
             history = item.history,
+            syncIndicator = item.syncIndicator,
             onAddTextAttachment = viewModel::addTextAttachment,
             onAddLinkAttachment = viewModel::addLinkAttachment,
             driveActionsEnabled = driveConnected,
