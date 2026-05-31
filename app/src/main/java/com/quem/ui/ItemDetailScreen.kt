@@ -323,14 +323,3 @@ private fun DetailEmptyText(text: String) {
     )
 }
 
-private fun SyncIndicator.toColor(): Color = when (this) {
-    SyncIndicator.PENDING -> Color(0xFFF57C00)
-    SyncIndicator.SYNCING -> Color(0xFF9E9E9E)
-    SyncIndicator.ERROR   -> Color(0xFFD32F2F)
-}
-
-private fun SyncIndicator.toLabel(): String = when (this) {
-    SyncIndicator.PENDING -> "Pending sync"
-    SyncIndicator.SYNCING -> "Syncing…"
-    SyncIndicator.ERROR   -> "Sync error"
-}

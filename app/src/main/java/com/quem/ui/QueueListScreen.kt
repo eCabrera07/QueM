@@ -24,7 +24,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -136,6 +137,7 @@ private fun QueueListItemCard(
                         .padding(10.dp)
                         .size(9.dp)
                         .background(indicator.toColor(), CircleShape)
+                        .semantics { contentDescription = indicator.toLabel() }
                 )
             }
         }
@@ -153,8 +155,3 @@ private fun QueueItemMetadataText(text: String) {
     )
 }
 
-private fun SyncIndicator.toColor(): Color = when (this) {
-    SyncIndicator.PENDING -> Color(0xFFF57C00)
-    SyncIndicator.SYNCING -> Color(0xFF9E9E9E)
-    SyncIndicator.ERROR   -> Color(0xFFD32F2F)
-}

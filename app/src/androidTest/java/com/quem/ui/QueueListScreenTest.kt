@@ -2,6 +2,7 @@ package com.quem.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -38,6 +39,30 @@ import org.junit.Test
 
 class QueueListScreenTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun syncDotVisibleOnPendingSyncItem() {
+        compose.setContent {
+            QueueListScreen(
+                selectedStatus = QueueStatus.QUEUED,
+                items = listOf(
+                    QueueListItemUi(
+                        id = "item-1",
+                        title = "Read contract",
+                        priorityLabel = null,
+                        dueDateLabel = null,
+                        attachmentSummary = "0 attachments",
+                        syncIndicator = SyncIndicator.PENDING
+                    )
+                ),
+                onStatusSelected = {},
+                onItemSelected = {},
+                onCreateItem = {}
+            )
+        }
+
+        compose.onNodeWithContentDescription("Pending sync").assertIsDisplayed()
+    }
 
     @Test
     fun showsDismissedTabAndQueuedItem() {
