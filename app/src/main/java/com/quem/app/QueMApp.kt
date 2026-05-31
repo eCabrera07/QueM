@@ -12,6 +12,7 @@ import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.DriveConnectionState
 import com.quem.drive.DrivePickerCoordinator
 import com.quem.drive.NoOpDrivePickerCoordinator
+import com.quem.ui.ArchiveSearchScreen
 import com.quem.ui.CreateItemScreen
 import com.quem.ui.ItemDetailScreen
 import com.quem.ui.QueueListScreen
@@ -34,9 +35,12 @@ fun QueMApp(
     val selectedStatus by viewModel.selectedStatus.collectAsStateWithLifecycle()
     val isCreatingItem by viewModel.isCreatingItem.collectAsStateWithLifecycle()
     val isShowingSettings by viewModel.isShowingSettings.collectAsStateWithLifecycle()
+    val isShowingArchive by viewModel.isShowingArchive.collectAsStateWithLifecycle()
     val items by viewModel.items.collectAsStateWithLifecycle()
     val selectedItem by viewModel.selectedItem.collectAsStateWithLifecycle()
     val driveConnectionState by viewModel.driveConnectionState.collectAsStateWithLifecycle()
+    val archiveQuery by viewModel.archiveQuery.collectAsStateWithLifecycle()
+    val archiveResults by viewModel.archiveResults.collectAsStateWithLifecycle()
 
     if (isShowingSettings) {
         SettingsScreen(
@@ -59,6 +63,14 @@ fun QueMApp(
             },
             onCancel = viewModel::cancelCreate
         )
+    } else if (isShowingArchive) {
+        ArchiveSearchScreen(
+            query = archiveQuery,
+            results = archiveResults,
+            onQueryChange = viewModel::setArchiveQuery,
+            onItemSelected = viewModel::selectArchiveItem,
+            onBack = viewModel::closeArchive
+        )
     } else if (selectedItem == null) {
         QueueListScreen(
             selectedStatus = selectedStatus,
@@ -66,7 +78,8 @@ fun QueMApp(
             onStatusSelected = viewModel::selectStatus,
             onItemSelected = viewModel::selectItem,
             onCreateItem = viewModel::startCreate,
-            onOpenSettings = viewModel::showSettings
+            onOpenSettings = viewModel::showSettings,
+            onOpenArchive = viewModel::showArchive
         )
     } else {
         val item = selectedItem ?: return
