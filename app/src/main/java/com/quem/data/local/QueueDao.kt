@@ -5,6 +5,7 @@ import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
+import java.time.LocalDate
 
 @Dao
 interface QueueDao {
@@ -65,6 +66,27 @@ interface QueueDao {
         updatedAt: Instant,
         completedAt: Instant?,
         dismissedAt: Instant?
+    ): Int
+
+    @Query(
+        """
+        UPDATE queue_items
+        SET title       = :title,
+            description = :description,
+            priority    = :priority,
+            dueDate     = :dueDate,
+            updatedAt   = :updatedAt,
+            syncState   = 'PENDING_SYNC'
+        WHERE id = :id
+        """
+    )
+    suspend fun updateItemFields(
+        id: String,
+        title: String,
+        description: String?,
+        priority: String?,
+        dueDate: LocalDate?,
+        updatedAt: Instant
     ): Int
 
     @Upsert

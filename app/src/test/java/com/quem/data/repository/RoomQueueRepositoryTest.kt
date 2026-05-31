@@ -623,6 +623,109 @@ class RoomQueueRepositoryTest {
         assertEquals(HistoryKind.ATTACHMENT_ADDED, attachmentEntry.kind)
         assertEquals("Attachment added: My Note", attachmentEntry.message)
     }
+
+    @Test
+    fun updateItemPatchesEditableFieldsAndPreservesOthers() = runTest {
+        val dao = FakeQueueDao()
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val later = Instant.parse("2026-05-24T12:00:00Z")
+        val ids = mutableListOf("item-1", "history-create", "history-edit")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Old title", description = "Old desc", priority = null, dueDate = null)
+
+        val repositoryAtLater = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(later),
+            idProvider = { ids.removeFirst() }
+        )
+        val updated = repositoryAtLater.updateItem(
+            id          = "item-1",
+            title       = "New title",
+            description = "New desc",
+            priority    = Priority.HIGH,
+            dueDate     = LocalDate.parse("2026-06-01")
+        )
+
+        requireNotNull(updated)
+        assertEquals("New title", updated.title)
+        assertEquals("New desc", updated.description)
+        assertEquals(Priority.HIGH, updated.priority)
+        assertEquals(LocalDate.parse("2026-06-01"), updated.dueDate)
+        assertEquals(later, updated.updatedAt)
+        assertEquals(SyncState.PENDING_SYNC, updated.syncState)
+        assertEquals(QueueStatus.QUEUED, updated.status)
+        assertEquals(now, updated.createdAt)
+    }
+
+    @Test
+    fun updateItemReturnsNullWhenItemDoesNotExist() = runTest {
+        val dao = FakeQueueDao()
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { "unused" }
+        )
+
+        val result = repository.updateItem(
+            id          = "missing",
+            title       = "Title",
+            description = null,
+            priority    = null,
+            dueDate     = null
+        )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun updateItemWritesEditHistoryEntry() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-create", "history-edit")
+        val now = Instant.parse("2026-05-23T12:00:00Z")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(now),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+
+        repository.updateItem(id = "item-1", title = "Updated", description = null, priority = null, dueDate = null)
+
+        val history = repository.observeHistory("item-1").first()
+        val editEntry = history.first { it.kind == HistoryKind.EDIT }
+        assertEquals("Edited", editEntry.message)
+        assertEquals(HistoryKind.EDIT, editEntry.kind)
+    }
+
+    @Test
+    fun updateItemHistoryWriteFailureDoesNotPropagateToCaller() = runTest {
+        val dao = object : FakeQueueDao() {
+            override suspend fun upsertHistoryEntry(entry: HistoryEntryEntity) {
+                throw RuntimeException("DB error")
+            }
+        }
+        val ids = mutableListOf("item-1", "history-edit")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { ids.removeFirst() }
+        )
+        dao.upsertItem(
+            queueItemEntity(
+                id = "item-1",
+                now = Instant.parse("2026-05-23T12:00:00Z")
+            )
+        )
+
+        // Must not throw
+        val result = repository.updateItem(id = "item-1", title = "New", description = null, priority = null, dueDate = null)
+
+        assertEquals("New", result?.title)
+    }
 }
 
 private fun queueItemEntity(
@@ -722,6 +825,33 @@ private class FakeQueueDao : QueueDao {
                     completedAt = completedAt,
                     dismissedAt = dismissedAt,
                     syncState = SyncState.PENDING_SYNC.name
+                )
+            } else {
+                item
+            }
+        }
+        return updatedRows
+    }
+
+    override suspend fun updateItemFields(
+        id: String,
+        title: String,
+        description: String?,
+        priority: String?,
+        dueDate: LocalDate?,
+        updatedAt: Instant
+    ): Int {
+        var updatedRows = 0
+        entities.value = entities.value.map { item ->
+            if (item.id == id) {
+                updatedRows++
+                item.copy(
+                    title       = title,
+                    description = description,
+                    priority    = priority,
+                    dueDate     = dueDate,
+                    updatedAt   = updatedAt,
+                    syncState   = SyncState.PENDING_SYNC.name
                 )
             } else {
                 item

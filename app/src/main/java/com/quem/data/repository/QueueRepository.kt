@@ -24,6 +24,14 @@ interface QueueRepository {
 
     suspend fun changeStatus(id: String, status: QueueStatus): QueueItem?
 
+    suspend fun updateItem(
+        id: String,
+        title: String,
+        description: String?,
+        priority: Priority?,
+        dueDate: LocalDate?
+    ): QueueItem?
+
     fun observeAttachments(queueItemId: String): Flow<List<Attachment>>
 
     fun observeHistory(queueItemId: String): Flow<List<HistoryEntry>>
