@@ -113,6 +113,7 @@ fun ItemDetailScreen(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 syncIndicator?.let { indicator ->
+                    val color = indicator.toColor()
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -120,12 +121,12 @@ fun ItemDetailScreen(
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
-                                .background(indicator.toColor(), CircleShape)
+                                .background(color, CircleShape)
                         )
                         Text(
                             text = indicator.toLabel(),
                             style = MaterialTheme.typography.labelSmall,
-                            color = indicator.toColor()
+                            color = color
                         )
                     }
                 }
