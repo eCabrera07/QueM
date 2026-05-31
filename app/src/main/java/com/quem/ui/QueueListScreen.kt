@@ -104,7 +104,7 @@ private fun QueueListItemCard(
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {
-        Box {
+        Box(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
