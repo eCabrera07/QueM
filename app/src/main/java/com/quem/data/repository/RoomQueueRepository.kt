@@ -115,6 +115,41 @@ class RoomQueueRepository(
         return dao.observeItem(id).first()?.toDomain()
     }
 
+    override suspend fun updateItem(
+        id: String,
+        title: String,
+        description: String?,
+        priority: Priority?,
+        dueDate: LocalDate?
+    ): QueueItem? {
+        val now = clock.now()
+        val updatedRows = dao.updateItemFields(
+            id          = id,
+            title       = title.trim(),
+            description = description?.trim()?.takeIf { it.isNotEmpty() },
+            priority    = priority?.name,
+            dueDate     = dueDate,
+            updatedAt   = now
+        )
+        if (updatedRows == 0) return null
+
+        runCatching {
+            dao.upsertHistoryEntry(
+                HistoryEntryEntity(
+                    id          = idProvider(),
+                    queueItemId = id,
+                    message     = "Edited",
+                    kind        = HistoryKind.EDIT.name,
+                    createdAt   = now
+                )
+            )
+        }.onFailure { e ->
+            Log.w(TAG, "Failed to write history entry", e)
+        }
+
+        return dao.observeItem(id).first()?.toDomain()
+    }
+
     override suspend fun addTextAttachment(queueItemId: String, title: String, text: String) {
         if (text.isBlank()) return
 

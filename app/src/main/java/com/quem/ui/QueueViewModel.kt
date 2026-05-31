@@ -36,6 +36,7 @@ data class QueueItemDetailUi(
     val id: String,
     val title: String,
     val description: String?,
+    val priorityLabel: String?,
     val dueDateLabel: String?,
     val attachments: List<String>,
     val history: List<String>,
@@ -114,6 +115,9 @@ class QueueViewModel(
     val isShowingArchive: StateFlow<Boolean> =
         savedStateHandle.getStateFlow(KEY_IS_SHOWING_ARCHIVE, false)
 
+    val isEditingItem: StateFlow<Boolean> =
+        savedStateHandle.getStateFlow(KEY_IS_EDITING_ITEM, false)
+
     val archiveQuery: StateFlow<String> =
         savedStateHandle.getStateFlow(KEY_ARCHIVE_QUERY, "")
 
@@ -174,6 +178,31 @@ class QueueViewModel(
 
     fun closeArchive() {
         savedStateHandle[KEY_IS_SHOWING_ARCHIVE] = false
+    }
+
+    fun startEdit() {
+        savedStateHandle[KEY_IS_EDITING_ITEM]     = true
+        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
+        savedStateHandle[KEY_IS_SHOWING_ARCHIVE]  = false
+        savedStateHandle[KEY_IS_CREATING_ITEM]    = false
+    }
+
+    fun cancelEdit() {
+        savedStateHandle[KEY_IS_EDITING_ITEM] = false
+    }
+
+    fun saveEdit(title: String, description: String?, priority: String?, dueDate: String?) {
+        val id = selectedItemId.value ?: return
+        viewModelScope.launch {
+            repository.updateItem(
+                id          = id,
+                title       = title,
+                description = description,
+                priority    = priority.toPriorityOrNull(),
+                dueDate     = dueDate.toLocalDateOrNull()
+            )
+            savedStateHandle[KEY_IS_EDITING_ITEM] = false
+        }
     }
 
     fun selectArchiveItem(id: String) {
@@ -328,6 +357,7 @@ class QueueViewModel(
         private const val KEY_SELECTED_ITEM_ID = "selectedItemId"
         private const val KEY_IS_SHOWING_ARCHIVE = "isShowingArchive"
         private const val KEY_ARCHIVE_QUERY      = "archiveQuery"
+        private const val KEY_IS_EDITING_ITEM    = "isEditingItem"
     }
 }
 
@@ -344,6 +374,7 @@ private fun QueueItem.toDetailUi(attachments: List<String>, history: List<String
     id            = id,
     title         = title,
     description   = description,
+    priorityLabel = priority?.name,
     dueDateLabel  = dueDate?.toString(),
     attachments   = attachments,
     history       = history,

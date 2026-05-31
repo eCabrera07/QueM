@@ -502,6 +502,54 @@ class QueueViewModelTest {
         assertEquals(listOf("contract-1"), viewModel.archiveResults.value.map { it.id })
     }
 
+    @Test
+    fun selectedItemIncludesPriorityLabelWhenPrioritySet() = runTest {
+        val repository = FakeQueueRepository()
+        repository.items.value = listOf(
+            queueItem(id = "item-1", title = "Read contract", description = null,
+                status = QueueStatus.QUEUED, priority = Priority.HIGH)
+        )
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+
+        assertEquals("HIGH", viewModel.selectedItem.value?.priorityLabel)
+    }
+
+    @Test
+    fun selectedItemHasNullPriorityLabelWhenNoPriority() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+
+        assertNull(viewModel.selectedItem.value?.priorityLabel)
+    }
+
+    @Test
+    fun saveEditUpdatesItemAndClearsEditingState() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(title = "Old title", description = null, priority = null, dueDate = null)
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        viewModel.startEdit()
+        assertEquals(true, viewModel.isEditingItem.value)
+
+        viewModel.saveEdit("New title", "New desc", "high", null)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.isEditingItem.value)
+        assertEquals("New title", viewModel.selectedItem.value?.title)
+        assertEquals("New desc", viewModel.selectedItem.value?.description)
+    }
+
     private fun TestScope.collectSelectedItem(viewModel: QueueViewModel) {
         backgroundScope.launch { viewModel.selectedItem.collect() }
         runCurrent()
@@ -581,6 +629,25 @@ private class FakeQueueRepository : QueueRepository {
         items.value = items.value.map { item ->
             if (item.id == id) {
                 item.copy(status = status).also { updatedItem = it }
+            } else {
+                item
+            }
+        }
+        return updatedItem
+    }
+
+    override suspend fun updateItem(
+        id: String,
+        title: String,
+        description: String?,
+        priority: Priority?,
+        dueDate: LocalDate?
+    ): QueueItem? {
+        var updatedItem: QueueItem? = null
+        items.value = items.value.map { item ->
+            if (item.id == id) {
+                item.copy(title = title, description = description, priority = priority, dueDate = dueDate)
+                    .also { updatedItem = it }
             } else {
                 item
             }
