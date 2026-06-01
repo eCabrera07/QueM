@@ -21,8 +21,8 @@ fun MetadataQueueItem.toEntity() = QueueItemEntity(
     completedAt       = completedAt?.let { Instant.parse(it) },
     dismissedAt       = dismissedAt?.let { Instant.parse(it) },
     syncState         = SyncState.SYNCED.name,
-    sharedDriveFileId = null,
-    sharedWith        = emptyList()
+    sharedDriveFileId = null,      // Phase 2: propagate from remote metadata
+    sharedWith        = emptyList() // Phase 2: propagate from remote metadata
 )
 
 fun MetadataAttachment.toEntity() = AttachmentEntity(
