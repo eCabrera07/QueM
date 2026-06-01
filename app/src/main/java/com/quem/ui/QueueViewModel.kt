@@ -357,6 +357,9 @@ class QueueViewModel(
     private val _shareError = MutableStateFlow<String?>(null)
     val shareError: StateFlow<String?> = _shareError.asStateFlow()
 
+    private val _isSharingInFlight = MutableStateFlow(false)
+    val isSharingInFlight: StateFlow<Boolean> = _isSharingInFlight.asStateFlow()
+
     fun showShareDialog() {
         savedStateHandle[KEY_IS_SHOWING_SHARE_DIALOG] = true
         _shareError.value = null
@@ -372,14 +375,20 @@ class QueueViewModel(
     }
 
     fun shareItem(recipientEmail: String, shareGateway: DriveShareGateway) {
+        if (_isSharingInFlight.value) return   // guard against double-tap
         val id = selectedItemId.value ?: return
         viewModelScope.launch {
-            val success = repository.shareItem(id, recipientEmail, shareGateway)
-            if (success) {
-                savedStateHandle[KEY_IS_SHOWING_SHARE_DIALOG] = false
-                _shareError.value = null
-            } else {
-                _shareError.value = "Could not share item. Check the email and try again."
+            _isSharingInFlight.value = true
+            try {
+                val success = repository.shareItem(id, recipientEmail, shareGateway)
+                if (success) {
+                    savedStateHandle[KEY_IS_SHOWING_SHARE_DIALOG] = false
+                    _shareError.value = null
+                } else {
+                    _shareError.value = "Could not share item. Check the email and try again."
+                }
+            } finally {
+                _isSharingInFlight.value = false
             }
         }
     }

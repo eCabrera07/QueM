@@ -31,7 +31,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
@@ -748,6 +750,44 @@ class QueueViewModelTest {
         assertEquals("file-123", viewModel.selectedItem.value?.sharedDriveFileId)
     }
 
+    @Test
+    fun shareItemClosesDialogAndClearsErrorOnSuccess() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        viewModel.showShareDialog()
+        advanceUntilIdle()
+
+        viewModel.shareItem("alice@example.com", FakeDriveShareGateway())
+        advanceUntilIdle()
+
+        assertFalse(viewModel.isShowingShareDialog.value)
+        assertNull(viewModel.shareError.value)
+        assertEquals("item-1", repository.lastSharedItemId)
+        assertEquals("alice@example.com", repository.lastSharedEmail)
+    }
+
+    @Test
+    fun shareItemKeepsDialogOpenAndSetsErrorOnFailure() = runTest {
+        val repository = FakeQueueRepository(shareReturns = false)
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        viewModel.showShareDialog()
+        advanceUntilIdle()
+
+        viewModel.shareItem("alice@example.com", FakeDriveShareGateway())
+        advanceUntilIdle()
+
+        assertTrue(viewModel.isShowingShareDialog.value)
+        assertNotNull(viewModel.shareError.value)
+    }
+
     private fun TestScope.collectSelectedItem(viewModel: QueueViewModel) {
         backgroundScope.launch { viewModel.selectedItem.collect() }
         runCurrent()
@@ -777,7 +817,7 @@ class MainDispatcherRule(
     }
 }
 
-private class FakeQueueRepository : QueueRepository {
+private class FakeQueueRepository(private val shareReturns: Boolean = true) : QueueRepository {
     val items = MutableStateFlow<List<QueueItem>>(emptyList())
     private val attachments = MutableStateFlow<List<Attachment>>(emptyList())
     private val historyEntries = MutableStateFlow<List<HistoryEntry>>(emptyList())
@@ -928,7 +968,7 @@ private class FakeQueueRepository : QueueRepository {
     ): Boolean {
         lastSharedItemId = itemId
         lastSharedEmail = recipientEmail
-        return true
+        return shareReturns
     }
 
     fun emitHistory(vararg entries: HistoryEntry) {
@@ -1001,3 +1041,8 @@ private fun historyEntry(
     kind = kind,
     createdAt = createdAt
 )
+
+private class FakeDriveShareGateway : com.quem.drive.DriveShareGateway {
+    override suspend fun publishSharedItemFile(itemId: String, content: String) = "fake-file-id"
+    override suspend fun grantWriterAccess(fileId: String, recipientEmail: String) = Unit
+}
