@@ -1,5 +1,6 @@
 package com.quem.ui
 
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -22,6 +23,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PriorityDropdown(
     selected: String?,
@@ -53,6 +55,7 @@ fun PriorityDropdown(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DueDatePicker(
     selected: String?,
@@ -102,6 +105,7 @@ fun DueDatePicker(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatusDropdown(
     current: QueueStatus,
