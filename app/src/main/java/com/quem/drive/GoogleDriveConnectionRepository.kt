@@ -10,8 +10,9 @@ class GoogleDriveConnectionRepository(
 ) : DriveConnectionRepository {
     private val mutableState = MutableStateFlow<DriveConnectionState>(
         driveAccountPreferences?.load()
+            ?.takeIf { it.contains("@") } // discard invalid stored emails (e.g. "Google Drive")
             ?.let { email -> DriveConnectionState.Connected(DriveAccount(email = email)) }
-            ?: DriveConnectionState.Disconnected
+            ?: DriveConnectionState.Disconnected.also { driveAccountPreferences?.clear() }
     )
     private var authorizationCoordinator: DriveAuthorizationCoordinator? = initialAuthorizationCoordinator
 

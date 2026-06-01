@@ -61,21 +61,27 @@ class GoogleDriveAuthorizationCoordinator(
             )
         }
 
-        return DriveAuthorizationRequestResult.Authorized(toGrant())
+        val grant = toGrant()
+            ?: return DriveAuthorizationRequestResult.Failed("Could not retrieve Google account email")
+        return DriveAuthorizationRequestResult.Authorized(grant)
     }
 
-    private fun AuthorizationResult.toResolutionResult(): DriveAuthorizationResolutionResult =
-        DriveAuthorizationResolutionResult.Authorized(toGrant())
+    private fun AuthorizationResult.toResolutionResult(): DriveAuthorizationResolutionResult {
+        val grant = toGrant()
+            ?: return DriveAuthorizationResolutionResult.Failed("Could not retrieve Google account email")
+        return DriveAuthorizationResolutionResult.Authorized(grant)
+    }
 
-    private fun AuthorizationResult.toGrant(): DriveAuthorizationGrant =
-        DriveAuthorizationGrant(
-            accountEmail = toGoogleSignInAccount()?.email ?: "Google Drive"
-        )
+    private fun AuthorizationResult.toGrant(): DriveAuthorizationGrant? {
+        val email = toGoogleSignInAccount()?.email ?: return null
+        return DriveAuthorizationGrant(accountEmail = email)
+    }
 
     companion object {
         const val DRIVE_FILE_SCOPE: String = "https://www.googleapis.com/auth/drive.file"
+        const val EMAIL_SCOPE: String = "email"
 
-        fun requiredScopeUris(): List<String> = listOf(DRIVE_FILE_SCOPE)
+        fun requiredScopeUris(): List<String> = listOf(DRIVE_FILE_SCOPE, EMAIL_SCOPE)
 
         fun requiredScopes(): List<Scope> = requiredScopeUris().map(::Scope)
     }
