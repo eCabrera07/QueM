@@ -184,8 +184,7 @@ class QueueListScreenTest {
         }
 
         compose.onNodeWithText("Read contract").performClick()
-        compose.onNodeWithText("Queued").performClick()
-        compose.onNodeWithText("Dismissed").performClick()
+        compose.onNodeWithText("Dismiss").performClick()
 
         compose.onNodeWithText("Dismissed").assertIsSelected()
         compose.onNodeWithText("Read contract").assertIsDisplayed()

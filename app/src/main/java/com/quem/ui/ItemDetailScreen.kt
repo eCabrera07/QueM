@@ -132,9 +132,9 @@ fun ItemDetailScreen(
         }
 
         item {
-            StatusDropdown(
-                current = currentStatus,
-                onChange = onStatusChange
+            StatusActionRow(
+                currentStatus = currentStatus,
+                onStatusChange = onStatusChange
             )
         }
 
@@ -189,6 +189,76 @@ fun ItemDetailScreen(
 
         item {
             Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun StatusActionRow(
+    currentStatus: QueueStatus,
+    onStatusChange: (QueueStatus) -> Unit
+) {
+    when (currentStatus) {
+        QueueStatus.QUEUED -> {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { onStatusChange(QueueStatus.IN_PROGRESS) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Start", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Button(
+                    onClick = { onStatusChange(QueueStatus.DONE) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Mark done", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                OutlinedButton(
+                    onClick = { onStatusChange(QueueStatus.DISMISSED) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Dismiss", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+
+        QueueStatus.IN_PROGRESS -> {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { onStatusChange(QueueStatus.DONE) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Mark done", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                OutlinedButton(
+                    onClick = { onStatusChange(QueueStatus.QUEUED) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Queue", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                OutlinedButton(
+                    onClick = { onStatusChange(QueueStatus.DISMISSED) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Dismiss", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+
+        QueueStatus.DONE,
+        QueueStatus.DISMISSED -> {
+            Button(
+                onClick = { onStatusChange(QueueStatus.QUEUED) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Restore", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }

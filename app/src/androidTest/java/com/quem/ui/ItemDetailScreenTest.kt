@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.quem.core.model.QueueStatus
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -137,5 +138,62 @@ class ItemDetailScreenTest {
         }
 
         compose.onNodeWithText("No attachments").assertIsDisplayed()
+    }
+
+    @Test
+    fun queuedItemShowsDirectWorkflowActions() {
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
+                currentStatus = QueueStatus.QUEUED,
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("Start").assertIsDisplayed()
+        compose.onNodeWithText("Mark done").assertIsDisplayed()
+        compose.onNodeWithText("Dismiss").assertIsDisplayed()
+    }
+
+    @Test
+    fun doneItemShowsRestoreAction() {
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
+                currentStatus = QueueStatus.DONE,
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("Restore").assertIsDisplayed()
+    }
+
+    @Test
+    fun startActionInvokesStatusChange() {
+        var selectedStatus: QueueStatus? = null
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
+                currentStatus = QueueStatus.QUEUED,
+                onStatusChange = { selectedStatus = it },
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("Start").performClick()
+
+        assertTrue(selectedStatus == QueueStatus.IN_PROGRESS)
     }
 }
