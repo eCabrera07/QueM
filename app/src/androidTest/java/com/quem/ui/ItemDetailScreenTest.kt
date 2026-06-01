@@ -29,8 +29,6 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = listOf(AttachmentUi(displayName = "contract.pdf", url = null, driveFileId = null, isLink = false, isDriveFile = false, isDriveFolder = false)),
                 history = listOf("Created item"),
-                onDismiss = {},
-                onDone = {},
                 onBack = {}
             )
         }
@@ -54,8 +52,8 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = emptyList(),
                 history = emptyList(),
-                onDismiss = { dismissed = true },
-                onDone = { done = true },
+                
+                
                 onBack = { backed = true }
             )
         }
@@ -81,8 +79,6 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = emptyList(),
                 history = emptyList(),
-                onDismiss = {},
-                onDone = {},
                 onBack = {},
                 onAddTextAttachment = { title, text ->
                     savedTitle = title
@@ -112,8 +108,6 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = emptyList(),
                 history = emptyList(),
-                onDismiss = {},
-                onDone = {},
                 onBack = {},
                 onAddLinkAttachment = { title, url ->
                     savedTitle = title
@@ -142,8 +136,6 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = emptyList(),
                 history = emptyList(),
-                onDismiss = {},
-                onDone = {},
                 onBack = {},
                 onAddTextAttachment = { _, _ -> saved = true }
             )
@@ -168,8 +160,6 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = emptyList(),
                 history = emptyList(),
-                onDismiss = {},
-                onDone = {},
                 onBack = {}
             )
         }
@@ -192,8 +182,6 @@ class ItemDetailScreenTest {
                 attachments = emptyList(),
                 history = emptyList(),
                 onAttachDriveFile = { title, id, _ -> capturedTitle = title; capturedId = id },
-                onDismiss = {},
-                onDone = {},
                 onBack = {}
             )
         }
@@ -217,8 +205,6 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = emptyList(),
                 history = emptyList(),
-                onDismiss = {},
-                onDone = {},
                 onBack = {}
             )
         }
@@ -240,8 +226,6 @@ class ItemDetailScreenTest {
                 priorityLabel = "HIGH",
                 attachments = emptyList(),
                 history = emptyList(),
-                onDismiss = {},
-                onDone = {},
                 onBack = {}
             )
         }
@@ -259,8 +243,6 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = emptyList(),
                 history = emptyList(),
-                onDismiss = {},
-                onDone = {},
                 onBack = {},
                 onEdit = { edited = true }
             )

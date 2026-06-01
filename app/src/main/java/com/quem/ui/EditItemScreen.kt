@@ -32,8 +32,8 @@ fun EditItemScreen(
 ) {
     var title by rememberSaveable { mutableStateOf(initialTitle) }
     var description by rememberSaveable { mutableStateOf(initialDescription) }
-    var priority by rememberSaveable { mutableStateOf(initialPriority) }
-    var dueDate by rememberSaveable { mutableStateOf(initialDueDate) }
+    var priority by rememberSaveable { mutableStateOf(initialPriority.takeUnless { it.isBlank() }) }
+    var dueDate by rememberSaveable { mutableStateOf(initialDueDate.takeUnless { it.isBlank() }) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -69,22 +69,16 @@ fun EditItemScreen(
         }
 
         item {
-            OutlinedTextField(
-                value = priority,
-                onValueChange = { priority = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Priority") },
-                singleLine = true
+            PriorityDropdown(
+                selected = priority,
+                onSelect = { priority = it }
             )
         }
 
         item {
-            OutlinedTextField(
-                value = dueDate,
-                onValueChange = { dueDate = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Due date optional") },
-                singleLine = true
+            DueDatePicker(
+                selected = dueDate,
+                onSelect = { dueDate = it }
             )
         }
 
@@ -106,8 +100,8 @@ fun EditItemScreen(
                         onSave(
                             title.trim(),
                             description.trim().takeUnless { it.isBlank() },
-                            priority.trim().takeUnless { it.isBlank() },
-                            dueDate.trim().takeUnless { it.isBlank() }
+                            priority,
+                            dueDate
                         )
                     },
                     modifier = Modifier.weight(1f),

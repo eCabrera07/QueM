@@ -14,9 +14,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,8 +28,8 @@ fun CreateItemScreen(
 ) {
     var title by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
-    var priority by rememberSaveable { mutableStateOf("") }
-    var dueDate by rememberSaveable { mutableStateOf("") }
+    var priority by rememberSaveable { mutableStateOf<String?>(null) }
+    var dueDate by rememberSaveable { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -65,22 +65,16 @@ fun CreateItemScreen(
         }
 
         item {
-            OutlinedTextField(
-                value = priority,
-                onValueChange = { priority = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Priority") },
-                singleLine = true
+            PriorityDropdown(
+                selected = priority,
+                onSelect = { priority = it }
             )
         }
 
         item {
-            OutlinedTextField(
-                value = dueDate,
-                onValueChange = { dueDate = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Due date optional") },
-                singleLine = true
+            DueDatePicker(
+                selected = dueDate,
+                onSelect = { dueDate = it }
             )
         }
 
@@ -102,8 +96,8 @@ fun CreateItemScreen(
                         onSave(
                             title.trim(),
                             description.trim().takeUnless { it.isBlank() },
-                            priority.trim().takeUnless { it.isBlank() },
-                            dueDate.trim().takeUnless { it.isBlank() }
+                            priority,
+                            dueDate
                         )
                     },
                     modifier = Modifier.weight(1f),

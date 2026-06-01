@@ -112,8 +112,10 @@ fun QueMApp(
             priorityLabel = item.priorityLabel,
             attachments   = item.attachments,
             history       = item.history,
-            syncIndicator = item.syncIndicator,
-            onEdit        = viewModel::startEdit,
+            syncIndicator  = item.syncIndicator,
+            currentStatus  = item.status,
+            onStatusChange = viewModel::changeStatusOfSelectedItem,
+            onEdit         = viewModel::startEdit,
             onAddTextAttachment = viewModel::addTextAttachment,
             onAddLinkAttachment = viewModel::addLinkAttachment,
             onAttachDriveFile = { title, driveFileId, mimeType ->
@@ -129,8 +131,6 @@ fun QueMApp(
                     driveFolderId = driveFolderId
                 )
             },
-            onDismiss = viewModel::dismissSelectedItem,
-            onDone    = viewModel::doneSelectedItem,
             onBack    = viewModel::backToList
         )
     }

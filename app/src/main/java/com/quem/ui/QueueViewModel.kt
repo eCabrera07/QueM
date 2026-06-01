@@ -52,7 +52,8 @@ data class QueueItemDetailUi(
     val dueDateIso: String?,    // ISO-8601 (e.g. "2026-06-01") — use for pre-populating edit forms
     val attachments: List<AttachmentUi>,
     val history: List<String>,
-    val syncIndicator: SyncIndicator?
+    val syncIndicator: SyncIndicator?,
+    val status: QueueStatus
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -261,6 +262,10 @@ class QueueViewModel(
         moveSelectedItemTo(QueueStatus.DISMISSED)
     }
 
+    fun changeStatusOfSelectedItem(status: QueueStatus) {
+        moveSelectedItemTo(status)
+    }
+
     fun addTextAttachment(title: String, text: String) {
         val id = selectedItemId.value ?: return
         viewModelScope.launch {
@@ -391,7 +396,8 @@ private fun QueueItem.toDetailUi(attachments: List<AttachmentUi>, history: List<
     dueDateIso    = dueDate?.toString(),
     attachments   = attachments,
     history       = history,
-    syncIndicator = syncState.toIndicator()
+    syncIndicator = syncState.toIndicator(),
+    status        = status
 )
 
 private fun Int.toAttachmentSummary(): String =

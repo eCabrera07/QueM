@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.clickable
+import com.quem.core.model.QueueStatus
 import com.quem.drive.DriveUrlExtractor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
@@ -49,8 +50,8 @@ fun ItemDetailScreen(
     history: List<String>,
     priorityLabel: String? = null,
     syncIndicator: SyncIndicator? = null,
-    onDismiss: () -> Unit,
-    onDone: () -> Unit,
+    currentStatus: QueueStatus = QueueStatus.QUEUED,
+    onStatusChange: (QueueStatus) -> Unit = {},
     onBack: () -> Unit,
     onEdit: () -> Unit = {},
     onAddTextAttachment: (title: String, text: String) -> Unit = { _, _ -> },
@@ -145,23 +146,10 @@ fun ItemDetailScreen(
         }
 
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = onDone,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Done", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                OutlinedButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Dismiss", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
+            StatusDropdown(
+                current = currentStatus,
+                onChange = onStatusChange
+            )
         }
 
         item {
