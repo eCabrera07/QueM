@@ -6,33 +6,49 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// Brand teal: #1A8C9B
-private val Teal700    = Color(0xFF1A8C9B)
-private val Teal900    = Color(0xFF00363D)
-private val Teal100    = Color(0xFFB2EBF2)
-private val Teal50     = Color(0xFFE0F7FA)
-private val TealOnDark = Color.White
+// Extracted from the QueM icon
+private val TealDark    = Color(0xFF0D7A8A)   // deep teal from icon background
+private val TealMid     = Color(0xFF1A8C9B)   // mid teal — brand colour
+private val TealLight   = Color(0xFFB2EBF2)   // light teal container
+private val TealOnDark  = Color.White
+
+private val OrangeAccent     = Color(0xFFE8962A)   // orange from character's arm
+private val OrangeContainer  = Color(0xFFFFF0D6)
+private val OrangeOnDark     = Color(0xFF3D2000)
+
+private val White       = Color(0xFFFFFFFF)
+private val OffWhite    = Color(0xFFF4FAFB)   // very slightly teal-tinted white
+private val OnSurface   = Color(0xFF191C1D)
 
 private val QueMColorScheme = lightColorScheme(
-    primary              = Teal700,
+    // Primary — teal
+    primary              = TealMid,
     onPrimary            = TealOnDark,
-    primaryContainer     = Teal100,
-    onPrimaryContainer   = Teal900,
-    secondary            = Color(0xFF4A7C86),
+    primaryContainer     = TealLight,
+    onPrimaryContainer   = TealDark,
+
+    // Secondary — orange (the accent highlight from the icon)
+    secondary            = OrangeAccent,
     onSecondary          = TealOnDark,
-    secondaryContainer   = Color(0xFFBDE8EF),
-    onSecondaryContainer = Color(0xFF001F24),
-    tertiary             = Color(0xFF5B5EA6),
+    secondaryContainer   = OrangeContainer,
+    onSecondaryContainer = OrangeOnDark,
+
+    // Tertiary — darker teal for depth
+    tertiary             = TealDark,
     onTertiary           = TealOnDark,
-    tertiaryContainer    = Color(0xFFE0E0FF),
-    onTertiaryContainer  = Color(0xFF15164A),
-    background           = Color(0xFFF5FAFB),
-    onBackground         = Color(0xFF191C1D),
-    surface              = Color(0xFFF5FAFB),
-    onSurface            = Color(0xFF191C1D),
-    surfaceVariant       = Teal50,
+    tertiaryContainer    = TealLight,
+    onTertiaryContainer  = TealDark,
+
+    // Backgrounds — white/off-white like the folder icons in the icon
+    background           = OffWhite,
+    onBackground         = OnSurface,
+    surface              = White,
+    onSurface            = OnSurface,
+    surfaceVariant       = TealLight,
     onSurfaceVariant     = Color(0xFF3F484A),
     outline              = Color(0xFF6F797A),
+
+    // Error
     error                = Color(0xFFBA1A1A),
     onError              = TealOnDark
 )

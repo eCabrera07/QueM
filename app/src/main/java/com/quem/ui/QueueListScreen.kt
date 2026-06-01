@@ -119,7 +119,7 @@ internal fun QueueListItemCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
