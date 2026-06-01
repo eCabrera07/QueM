@@ -6,28 +6,35 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
+// Brand teal: #1A8C9B
+private val Teal700    = Color(0xFF1A8C9B)
+private val Teal900    = Color(0xFF00363D)
+private val Teal100    = Color(0xFFB2EBF2)
+private val Teal50     = Color(0xFFE0F7FA)
+private val TealOnDark = Color.White
+
 private val QueMColorScheme = lightColorScheme(
-    primary = Color(0xFF256A5D),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFB9E7DC),
-    onPrimaryContainer = Color(0xFF0B332C),
-    secondary = Color(0xFF6D5D2E),
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFF1DF9B),
-    onSecondaryContainer = Color(0xFF2B240A),
-    tertiary = Color(0xFF7B4E66),
-    onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFFFD8E8),
-    onTertiaryContainer = Color(0xFF311020),
-    background = Color(0xFFFAFBF8),
-    onBackground = Color(0xFF1A1C1A),
-    surface = Color(0xFFFAFBF8),
-    onSurface = Color(0xFF1A1C1A),
-    surfaceVariant = Color(0xFFE0E6DE),
-    onSurfaceVariant = Color(0xFF444B46),
-    outline = Color(0xFF747D76),
-    error = Color(0xFFBA1A1A),
-    onError = Color.White
+    primary              = Teal700,
+    onPrimary            = TealOnDark,
+    primaryContainer     = Teal100,
+    onPrimaryContainer   = Teal900,
+    secondary            = Color(0xFF4A7C86),
+    onSecondary          = TealOnDark,
+    secondaryContainer   = Color(0xFFBDE8EF),
+    onSecondaryContainer = Color(0xFF001F24),
+    tertiary             = Color(0xFF5B5EA6),
+    onTertiary           = TealOnDark,
+    tertiaryContainer    = Color(0xFFE0E0FF),
+    onTertiaryContainer  = Color(0xFF15164A),
+    background           = Color(0xFFF5FAFB),
+    onBackground         = Color(0xFF191C1D),
+    surface              = Color(0xFFF5FAFB),
+    onSurface            = Color(0xFF191C1D),
+    surfaceVariant       = Teal50,
+    onSurfaceVariant     = Color(0xFF3F484A),
+    outline              = Color(0xFF6F797A),
+    error                = Color(0xFFBA1A1A),
+    onError              = TealOnDark
 )
 
 private val QueMTypography = Typography()

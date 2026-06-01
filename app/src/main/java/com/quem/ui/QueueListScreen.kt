@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -84,8 +85,6 @@ fun QueueListScreen(
                 QueMEmptyState(
                     title = selectedStatus.emptyTitle(),
                     message = selectedStatus.emptyMessage(),
-                    actionLabel = "New item",
-                    onAction = onCreateItem,
                     modifier = Modifier.fillMaxWidth()
                 )
             } else {
@@ -118,7 +117,10 @@ internal fun QueueListItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             Column(
