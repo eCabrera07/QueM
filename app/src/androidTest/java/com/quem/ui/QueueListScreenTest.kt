@@ -110,6 +110,22 @@ class QueueListScreenTest {
     }
 
     @Test
+    fun emptyQueuedListShowsHelpfulAction() {
+        compose.setContent {
+            QueueListScreen(
+                selectedStatus = QueueStatus.QUEUED,
+                items = emptyList(),
+                onStatusSelected = {},
+                onItemSelected = {},
+                onCreateItem = {}
+            )
+        }
+
+        compose.onNodeWithText("No queued items").assertIsDisplayed()
+        compose.onNodeWithText("New item").assertIsDisplayed()
+    }
+
+    @Test
     fun settingsSignInUsesDriveConnectionBoundary() {
         val repository = FakeQueueRepository.withSampleItem()
         compose.setContent {
@@ -119,7 +135,7 @@ class QueueListScreenTest {
             )
         }
 
-        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNodeWithText("Not signed in").assertIsDisplayed()
         compose.onNodeWithText("Sign in").performClick()
 
@@ -136,6 +152,7 @@ class QueueListScreenTest {
 
         compose.onNodeWithText("Read contract").performClick()
         compose.onNodeWithText("Edit").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Cancel"))
         compose.onNodeWithText("Cancel").performClick()
 
         compose.onNodeWithText("Read contract").assertIsDisplayed()
@@ -153,7 +170,7 @@ class QueueListScreenTest {
             )
         }
 
-        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithContentDescription("Settings").performClick()
         driveRepository.fail("Google Drive authorization unavailable")
 
         compose.onNodeWithText("Google Drive authorization unavailable").assertIsDisplayed()
@@ -167,7 +184,8 @@ class QueueListScreenTest {
         }
 
         compose.onNodeWithText("Read contract").performClick()
-        compose.onNodeWithText("Dismiss").performClick()
+        compose.onNodeWithText("Queued").performClick()
+        compose.onNodeWithText("Dismissed").performClick()
 
         compose.onNodeWithText("Dismissed").assertIsSelected()
         compose.onNodeWithText("Read contract").assertIsDisplayed()
@@ -177,42 +195,41 @@ class QueueListScreenTest {
     }
 
     @Test
-    fun createItemForwardsPriorityAndDueDateToList() {
+    fun createItemForwardsTitleToList() {
         val repository = FakeQueueRepository.empty()
         compose.setContent {
             QueMApp(queueRepository = repository)
         }
 
-        compose.onNodeWithText("New").performClick()
+        compose.onNodeWithContentDescription("New item").performClick()
         compose.onNodeWithText("Title").performTextInput("Read contract")
-        compose.onNodeWithText("Priority").performTextInput("high")
-        compose.onNodeWithText("Due date optional").performTextInput("2026-05-30")
         compose.onNodeWithText("Save").performClick()
 
         compose.onNodeWithText("Back").performClick()
 
         compose.onNodeWithText("Read contract").assertIsDisplayed()
-        compose.onNodeWithText("HIGH").assertIsDisplayed()
-        compose.onNodeWithText("2026-05-30").assertIsDisplayed()
     }
 
     @Test
-    fun addingTextAttachmentFromDetailUpdatesDetailAndListCount() {
+    fun addingTextAttachmentFromEditUpdatesDetailAndListCount() {
         val repository = FakeQueueRepository.withSampleItem()
         compose.setContent {
             QueMApp(queueRepository = repository)
         }
 
         compose.onNodeWithText("Read contract").performClick()
+        compose.onNodeWithText("Edit").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Text"))
         compose.onNodeWithText("Text").performClick()
         compose.onNodeWithText("Attachment title").performTextInput("Note")
         compose.onNode(hasText("Text") and hasSetTextAction()).performTextInput("Remember this")
-        compose.onNodeWithText("Save").performClick()
+        compose.onAllNodesWithText("Save")[0].performClick()
 
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("Note"))
         compose.onNodeWithText("Note").assertIsDisplayed()
 
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Back"))
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Cancel"))
+        compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithText("Back").performClick()
 
         compose.onNodeWithText("3 attachments").assertIsDisplayed()
@@ -229,13 +246,16 @@ class QueueListScreenTest {
         }
 
         compose.onNodeWithText("Read contract").performClick()
+        compose.onNodeWithText("Edit").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Drive file"))
         compose.onNodeWithText("Drive file").performClick()
+        compose.onNode(hasSetTextAction() and hasText("Label (optional)")).performTextInput("Contract file")
         compose.onNode(hasSetTextAction() and hasText("Drive file URL"))
             .performTextInput("https://drive.google.com/file/d/drive-file-id/view")
-        compose.onNodeWithText("Save").performClick()
+        compose.onAllNodesWithText("Save")[0].performClick()
 
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Drive file"))
-        compose.onNodeWithText("Drive file").assertIsDisplayed()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Contract file"))
+        compose.onNodeWithText("Contract file").assertIsDisplayed()
     }
 }
 
