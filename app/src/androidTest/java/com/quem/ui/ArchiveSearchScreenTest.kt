@@ -2,6 +2,7 @@ package com.quem.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
@@ -17,7 +18,7 @@ class ArchiveSearchScreenTest {
         compose.setContent {
             ArchiveSearchScreen(query = "", results = emptyList(), onQueryChange = {}, onItemSelected = {}, onBack = {})
         }
-        compose.onNodeWithText("Back").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back").assertIsDisplayed()
         compose.onNodeWithText("Archive").assertIsDisplayed()
     }
 
@@ -26,7 +27,7 @@ class ArchiveSearchScreenTest {
         compose.setContent {
             ArchiveSearchScreen(query = "", results = emptyList(), onQueryChange = {}, onItemSelected = {}, onBack = {})
         }
-        compose.onNodeWithText("No archived items").assertIsDisplayed()
+        compose.onNodeWithText("Nothing archived yet").assertIsDisplayed()
     }
 
     @Test
@@ -54,7 +55,7 @@ class ArchiveSearchScreenTest {
         compose.setContent {
             ArchiveSearchScreen(query = "", results = emptyList(), onQueryChange = {}, onItemSelected = {}, onBack = { backed = true })
         }
-        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithContentDescription("Back").performClick()
         assertTrue(backed)
     }
 

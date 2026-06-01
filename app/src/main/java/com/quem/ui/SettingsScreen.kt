@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -25,74 +27,61 @@ fun SettingsScreen(
     onDisconnect: () -> Unit,
     onBack: (() -> Unit)? = null
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                onBack?.let { back ->
-                    OutlinedButton(onClick = back) {
-                        Text("Back", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
+    Scaffold(
+        topBar = { QueMTopBar(title = "Settings", onBack = onBack) }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
                 Text(
-                    text = "Settings",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold
+                    text = accountEmail ?: "Not signed in",
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-        }
 
-        item {
-            Text(
-                text = accountEmail ?: "Not signed in",
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+            item {
+                Text(
+                    text = syncStatus,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-        item {
-            Text(
-                text = syncStatus,
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = onManualSync,
-                    modifier = Modifier.weight(1f)
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Sync now", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                if (accountEmail == null) {
-                    OutlinedButton(
-                        onClick = onSignIn,
+                    Button(
+                        onClick = onManualSync,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Sign in", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("Sync now", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                } else {
-                    OutlinedButton(
-                        onClick = onDisconnect,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Disconnect", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (accountEmail == null) {
+                        OutlinedButton(
+                            onClick = onSignIn,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Sign in", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = onDisconnect,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Disconnect", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
             }
