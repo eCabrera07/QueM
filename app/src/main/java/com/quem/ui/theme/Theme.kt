@@ -39,8 +39,8 @@ private val QueMColorScheme = lightColorScheme(
     tertiaryContainer    = TealLight,
     onTertiaryContainer  = TealDark,
 
-    // Backgrounds — white/off-white like the folder icons in the icon
-    background           = OffWhite,
+    // Background — light teal; surfaces/cards — white
+    background           = TealLight,
     onBackground         = OnSurface,
     surface              = White,
     onSurface            = OnSurface,
