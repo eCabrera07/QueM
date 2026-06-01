@@ -1,9 +1,15 @@
 package com.quem.app
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextInput
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
 import com.quem.core.model.HistoryEntry
@@ -15,8 +21,6 @@ import com.quem.data.repository.QueueRepository
 import com.quem.drive.DriveAccount
 import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.DriveConnectionState
-import com.quem.drive.DrivePickerCoordinator
-import com.quem.drive.DriveSelection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,104 +36,78 @@ class QueMAppPickerTest {
     val compose = createComposeRule()
 
     @Test
-    fun driveFilePickerAttachesSelectionToCurrentItem() {
+    fun driveFileUrlAttachesToCurrentItem() {
         val repository = FakePickerQueueRepository()
         val driveRepo = ConnectedDriveConnectionRepository()
-        val picker = FakeDrivePickerCoordinator()
 
         runBlocking { repository.createItem("Test item", null, null, null) }
 
         compose.setContent {
             QueMApp(
                 queueRepository = repository,
-                driveConnectionRepository = driveRepo,
-                drivePickerCoordinator = picker
+                driveConnectionRepository = driveRepo
             )
         }
 
         compose.onNodeWithText("Test item").performClick()
+        compose.onNodeWithText("Edit").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Drive file"))
         compose.onNodeWithText("Drive file").performClick()
-
-        picker.deliverFileSelection(
-            DriveSelection(id = "drive-123", name = "contract.pdf", mimeType = "application/pdf", isFolder = false)
-        )
+        compose.onNode(hasSetTextAction() and hasText("Label (optional)")).performTextInput("contract.pdf")
+        compose.onNode(hasSetTextAction() and hasText("Drive file URL"))
+            .performTextInput("https://drive.google.com/file/d/drive-123/view")
+        compose.onAllNodesWithText("Save")[0].performClick()
 
         compose.onNodeWithText("contract.pdf").assertIsDisplayed()
     }
 
     @Test
-    fun driveFolderPickerAttachesSelectionToCurrentItem() {
+    fun driveFolderUrlAttachesToCurrentItem() {
         val repository = FakePickerQueueRepository()
         val driveRepo = ConnectedDriveConnectionRepository()
-        val picker = FakeDrivePickerCoordinator()
 
         runBlocking { repository.createItem("Test item", null, null, null) }
 
         compose.setContent {
             QueMApp(
                 queueRepository = repository,
-                driveConnectionRepository = driveRepo,
-                drivePickerCoordinator = picker
+                driveConnectionRepository = driveRepo
             )
         }
 
         compose.onNodeWithText("Test item").performClick()
+        compose.onNodeWithText("Edit").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Drive folder"))
         compose.onNodeWithText("Drive folder").performClick()
-
-        picker.deliverFolderSelection(
-            DriveSelection(id = "folder-456", name = "Project folder", mimeType = null, isFolder = true)
-        )
+        compose.onNode(hasSetTextAction() and hasText("Label (optional)")).performTextInput("Project folder")
+        compose.onNode(hasSetTextAction() and hasText("Drive folder URL"))
+            .performTextInput("https://drive.google.com/drive/folders/folder-456")
+        compose.onAllNodesWithText("Save")[0].performClick()
 
         compose.onNodeWithText("Project folder").assertIsDisplayed()
     }
 
     @Test
-    fun cancellingPickerDoesNotAddAttachment() {
+    fun cancellingDriveUrlFormDoesNotAddAttachment() {
         val repository = FakePickerQueueRepository()
         val driveRepo = ConnectedDriveConnectionRepository()
-        val picker = FakeDrivePickerCoordinator()
 
         runBlocking { repository.createItem("Test item", null, null, null) }
 
         compose.setContent {
             QueMApp(
                 queueRepository = repository,
-                driveConnectionRepository = driveRepo,
-                drivePickerCoordinator = picker
+                driveConnectionRepository = driveRepo
             )
         }
 
         compose.onNodeWithText("Test item").performClick()
+        compose.onNodeWithText("Edit").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Drive file"))
         compose.onNodeWithText("Drive file").performClick()
-
-        picker.deliverFileSelection(null)  // user cancelled
+        compose.onNodeWithText("Cancel").performClick()
 
         compose.onNodeWithText("No attachments").assertIsDisplayed()
-    }
-}
-
-private class FakeDrivePickerCoordinator : DrivePickerCoordinator {
-    private var pendingFileCallback: ((DriveSelection?) -> Unit)? = null
-    private var pendingFolderCallback: ((DriveSelection?) -> Unit)? = null
-
-    override fun pickFile(onResult: (DriveSelection?) -> Unit) {
-        pendingFileCallback = onResult
-    }
-
-    override fun pickFolder(onResult: (DriveSelection?) -> Unit) {
-        pendingFolderCallback = onResult
-    }
-
-    fun deliverFileSelection(selection: DriveSelection?) {
-        val callback = pendingFileCallback
-        pendingFileCallback = null
-        callback?.invoke(selection)
-    }
-
-    fun deliverFolderSelection(selection: DriveSelection?) {
-        val callback = pendingFolderCallback
-        pendingFolderCallback = null
-        callback?.invoke(selection)
     }
 }
 
