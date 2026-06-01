@@ -228,7 +228,7 @@ fun ItemDetailScreen(
         } else {
             items(attachments) { attachment ->
                 val url = when {
-                    attachment.isLink -> attachment.url
+                    attachment.isLink -> attachment.url?.toAbsoluteUrl()
                     attachment.isDriveFile || attachment.isDriveFolder ->
                         attachment.driveFileId?.let { "https://drive.google.com/open?id=$it" }
                     else -> null
@@ -236,7 +236,7 @@ fun ItemDetailScreen(
                 if (url != null) {
                     AttachmentLinkText(
                         text = attachment.displayName,
-                        onClick = { runCatching { uriHandler.openUri(url) } }
+                        onClick = { uriHandler.openUri(url) }
                     )
                 } else {
                     DetailListText(attachment.displayName)
@@ -342,6 +342,9 @@ private fun DetailListText(text: String) {
         style = MaterialTheme.typography.bodyMedium
     )
 }
+
+private fun String.toAbsoluteUrl(): String =
+    if (startsWith("http://") || startsWith("https://")) this else "https://$this"
 
 @Composable
 private fun AttachmentLinkText(text: String, onClick: () -> Unit) {
