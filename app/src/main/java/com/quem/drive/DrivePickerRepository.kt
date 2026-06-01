@@ -19,6 +19,12 @@ class DrivePickerRepository(private val contentResolver: ContentResolver) {
     private var pendingFileCallback: ((DriveSelection?) -> Unit)? = null
     private var pendingFolderCallback: ((DriveSelection?) -> Unit)? = null
 
+    @MainThread
+    fun clearPendingFileCallback() { pendingFileCallback = null }
+
+    @MainThread
+    fun clearPendingFolderCallback() { pendingFolderCallback = null }
+
     /**
      * Stores the callback for an in-flight file pick. Returns true if stored,
      * false if a pick is already in progress (double-tap guard).
