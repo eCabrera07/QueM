@@ -66,6 +66,8 @@ fun QueueListScreen(
             ExtendedFloatingActionButton(
                 onClick = onCreateItem,
                 modifier = Modifier.semantics { contentDescription = "New item" },
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary,
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("New") }
             )
