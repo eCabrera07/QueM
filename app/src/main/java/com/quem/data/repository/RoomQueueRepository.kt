@@ -261,7 +261,7 @@ class RoomQueueRepository(
         recipientEmail: String,
         shareGateway: DriveShareGateway
     ): Boolean = runCatching {
-        val item        = dao.observeItem(itemId).first()?.toDomain() ?: return false
+        val item        = dao.observeItem(itemId).first()?.toDomain() ?: return@runCatching false
         val attachments = dao.observeAttachments(itemId).first().map { it.toDomain() }
         val history     = dao.observeHistory(itemId).first().map { it.toDomain() }
 
@@ -275,7 +275,7 @@ class RoomQueueRepository(
 
         val fileId = shareGateway.publishSharedItemFile(itemId, content)
         shareGateway.grantWriterAccess(fileId, recipientEmail)
-        dao.updateShareInfo(id = itemId, sharedDriveFileId = fileId, sharedWith = listOf(recipientEmail))
+        dao.updateShareInfo(id = itemId, sharedDriveFileId = fileId, sharedWith = listOf(recipientEmail), updatedAt = clock.now())
         true
     }.getOrElse { false }
 

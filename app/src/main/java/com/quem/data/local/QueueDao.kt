@@ -107,13 +107,16 @@ interface QueueDao {
     @Query("""
         UPDATE queue_items
         SET sharedDriveFileId = :sharedDriveFileId,
-            sharedWith        = :sharedWith
+            sharedWith        = :sharedWith,
+            syncState         = 'PENDING_SYNC',
+            updatedAt         = :updatedAt
         WHERE id = :id
     """)
     suspend fun updateShareInfo(
         id: String,
         sharedDriveFileId: String,
-        sharedWith: List<String>
+        sharedWith: List<String>,
+        updatedAt: java.time.Instant
     )
 
     @Query("SELECT * FROM attachments WHERE queueItemId = :queueItemId ORDER BY createdAt DESC, id ASC")

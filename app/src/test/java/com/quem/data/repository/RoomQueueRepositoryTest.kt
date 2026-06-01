@@ -948,10 +948,11 @@ private open class FakeQueueDao : QueueDao {
     override suspend fun updateShareInfo(
         id: String,
         sharedDriveFileId: String,
-        sharedWith: List<String>
+        sharedWith: List<String>,
+        updatedAt: java.time.Instant
     ) {
         entities.value = entities.value.map { item ->
-            if (item.id == id) item.copy(sharedDriveFileId = sharedDriveFileId, sharedWith = sharedWith)
+            if (item.id == id) item.copy(sharedDriveFileId = sharedDriveFileId, sharedWith = sharedWith, syncState = "PENDING_SYNC", updatedAt = updatedAt)
             else item
         }
     }
