@@ -725,6 +725,29 @@ class QueueViewModelTest {
         assertEquals("done-1", viewModel.selectedItem.value?.id)
     }
 
+    @Test
+    fun selectedItemIncludesSharedWithWhenItemIsShared() = runTest {
+        val repository = FakeQueueRepository()
+        repository.items.value = listOf(
+            queueItem(
+                id = "item-1",
+                title = "Read contract",
+                description = null,
+                status = QueueStatus.QUEUED,
+                sharedWith = listOf("alice@example.com"),
+                sharedDriveFileId = "file-123"
+            )
+        )
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+
+        assertEquals(listOf("alice@example.com"), viewModel.selectedItem.value?.sharedWith)
+        assertEquals("file-123", viewModel.selectedItem.value?.sharedDriveFileId)
+    }
+
     private fun TestScope.collectSelectedItem(viewModel: QueueViewModel) {
         backgroundScope.launch { viewModel.selectedItem.collect() }
         runCurrent()
@@ -895,11 +918,18 @@ private class FakeQueueRepository : QueueRepository {
         historyEntries.value = historyEntries.value.filterNot { it.id == historyEntryId }
     }
 
+    var lastSharedItemId: String? = null
+    var lastSharedEmail: String? = null
+
     override suspend fun shareItem(
         itemId: String,
         recipientEmail: String,
         shareGateway: DriveShareGateway
-    ): Boolean = throw UnsupportedOperationException()
+    ): Boolean {
+        lastSharedItemId = itemId
+        lastSharedEmail = recipientEmail
+        return true
+    }
 
     fun emitHistory(vararg entries: HistoryEntry) {
         historyEntries.value = entries.toList()
@@ -937,23 +967,25 @@ private fun queueItem(
     status: QueueStatus,
     priority: Priority? = null,
     dueDate: LocalDate? = null,
-    syncState: SyncState = SyncState.PENDING_SYNC
+    syncState: SyncState = SyncState.PENDING_SYNC,
+    sharedDriveFileId: String? = null,
+    sharedWith: List<String> = emptyList()
 ) = QueueItem(
-    id = id,
-    driveId = null,
-    title = title,
-    description = description,
-    status = status,
-    priority = priority,
-    dueDate = dueDate,
-    tags = emptyList(),
-    createdAt = Instant.parse("2026-05-23T12:00:00Z"),
-    updatedAt = Instant.parse("2026-05-23T12:00:00Z"),
-    completedAt = null,
-    dismissedAt = null,
-    syncState = syncState,
-    sharedDriveFileId = null,
-    sharedWith = emptyList()
+    id                = id,
+    driveId           = null,
+    title             = title,
+    description       = description,
+    status            = status,
+    priority          = priority,
+    dueDate           = dueDate,
+    tags              = emptyList(),
+    createdAt         = Instant.parse("2026-05-23T12:00:00Z"),
+    updatedAt         = Instant.parse("2026-05-23T12:00:00Z"),
+    completedAt       = null,
+    dismissedAt       = null,
+    syncState         = syncState,
+    sharedDriveFileId = sharedDriveFileId,
+    sharedWith        = sharedWith
 )
 
 private fun historyEntry(

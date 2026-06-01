@@ -19,12 +19,14 @@ import com.quem.data.repository.QueueRepository
 import com.quem.drive.DisconnectedDriveConnectionRepository
 import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.DriveConnectionState
+import com.quem.drive.DriveShareGateway
 import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -60,7 +62,9 @@ data class QueueItemDetailUi(
     val attachments: List<AttachmentUi>,
     val history: List<HistoryEntryUi>,
     val syncIndicator: SyncIndicator?,
-    val status: QueueStatus
+    val status: QueueStatus,
+    val sharedDriveFileId: String?,
+    val sharedWith: List<String>
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -347,6 +351,39 @@ class QueueViewModel(
         }
     }
 
+    val isShowingShareDialog: StateFlow<Boolean> =
+        savedStateHandle.getStateFlow(KEY_IS_SHOWING_SHARE_DIALOG, false)
+
+    private val _shareError = MutableStateFlow<String?>(null)
+    val shareError: StateFlow<String?> = _shareError.asStateFlow()
+
+    fun showShareDialog() {
+        savedStateHandle[KEY_IS_SHOWING_SHARE_DIALOG] = true
+        _shareError.value = null
+    }
+
+    fun closeShareDialog() {
+        savedStateHandle[KEY_IS_SHOWING_SHARE_DIALOG] = false
+        _shareError.value = null
+    }
+
+    fun setShareError(message: String) {
+        _shareError.value = message
+    }
+
+    fun shareItem(recipientEmail: String, shareGateway: DriveShareGateway) {
+        val id = selectedItemId.value ?: return
+        viewModelScope.launch {
+            val success = repository.shareItem(id, recipientEmail, shareGateway)
+            if (success) {
+                savedStateHandle[KEY_IS_SHOWING_SHARE_DIALOG] = false
+                _shareError.value = null
+            } else {
+                _shareError.value = "Could not share item. Check the email and try again."
+            }
+        }
+    }
+
     private fun setScreen(route: String, selectedItemId: String? = this.selectedItemId.value) {
         val nextSelectedItemId = selectedItemId.takeIf { route.isItemRoute() }
         val nextScreen = route.toScreen(nextSelectedItemId)
@@ -447,8 +484,9 @@ class QueueViewModel(
         private const val KEY_IS_SHOWING_SETTINGS = "isShowingSettings"
         private const val KEY_SELECTED_ITEM_ID = "selectedItemId"
         private const val KEY_IS_SHOWING_ARCHIVE = "isShowingArchive"
-        private const val KEY_ARCHIVE_QUERY      = "archiveQuery"
-        private const val KEY_IS_EDITING_ITEM    = "isEditingItem"
+        private const val KEY_ARCHIVE_QUERY            = "archiveQuery"
+        private const val KEY_IS_EDITING_ITEM          = "isEditingItem"
+        private const val KEY_IS_SHOWING_SHARE_DIALOG  = "isShowingShareDialog"
 
         private const val ROUTE_LIST = "list"
         private const val ROUTE_CREATE = "create"
@@ -490,16 +528,18 @@ private fun QueueItem.toListItemUi(attachmentCount: Int) = QueueListItemUi(
 )
 
 private fun QueueItem.toDetailUi(attachments: List<AttachmentUi>, history: List<HistoryEntryUi>) = QueueItemDetailUi(
-    id            = id,
-    title         = title,
-    description   = description,
-    priorityLabel = priority?.name,
-    dueDateLabel  = dueDate?.toString(),
-    dueDateIso    = dueDate?.toString(),
-    attachments   = attachments,
-    history       = history,
-    syncIndicator = syncState.toIndicator(),
-    status        = status
+    id                = id,
+    title             = title,
+    description       = description,
+    priorityLabel     = priority?.name,
+    dueDateLabel      = dueDate?.toString(),
+    dueDateIso        = dueDate?.toString(),
+    attachments       = attachments,
+    history           = history,
+    syncIndicator     = syncState.toIndicator(),
+    status            = status,
+    sharedDriveFileId = sharedDriveFileId,
+    sharedWith        = sharedWith
 )
 
 private fun Int.toAttachmentSummary(): String =
