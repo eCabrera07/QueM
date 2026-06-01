@@ -116,6 +116,11 @@ object GoogleDriveQueries {
             appPropertyEquals(APP_PROPERTY_ROLE, APP_PROPERTY_METADATA_FILE) +
             " and trashed = false"
 
+    internal fun canonicalSharedFileQuery(folderId: String, fileName: String): String =
+        "${literal(folderId)} in parents and name = ${literal(fileName)} and " +
+            appPropertyEquals(APP_PROPERTY_ROLE, APP_PROPERTY_SHARED_ITEM) +
+            " and trashed = false"
+
     private fun appPropertyEquals(key: String, value: String): String =
         "appProperties has { key = ${literal(key)} and value = ${literal(value)} }"
 
@@ -135,4 +140,5 @@ object GoogleDriveQueries {
     private const val APP_PROPERTY_ROLE = "quemRole"
     private const val APP_PROPERTY_ROOT_FOLDER = "rootFolder"
     private const val APP_PROPERTY_METADATA_FILE = "metadataFile"
+    internal const val APP_PROPERTY_SHARED_ITEM = "sharedItem"
 }

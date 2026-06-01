@@ -27,7 +27,7 @@ class GoogleDriveShareGateway(
                 val metadata = File()
                     .setName(fileName)
                     .setParents(listOf(folderId))
-                    .setAppProperties(mapOf(APP_PROPERTY_ROLE to APP_PROPERTY_SHARED_ITEM))
+                    .setAppProperties(mapOf(APP_PROPERTY_ROLE to GoogleDriveQueries.APP_PROPERTY_SHARED_ITEM))
                 drive.files().create(metadata, mediaContent).setFields("id").execute().id
             } else {
                 drive.files().update(existingFile.id, null, mediaContent).setFields("id").execute()
@@ -48,7 +48,9 @@ class GoogleDriveShareGateway(
         }
 
     private fun ensureFolder(folderName: String): String {
-        val existing = findFolder(folderName)
+        val existing = drive.files().list()
+            .setQ(GoogleDriveQueries.canonicalFolderQuery(folderName))
+            .setSpaces("drive").setFields("files(id, name)").execute().files.orEmpty().firstOrNull()
         if (existing != null) return existing.id
         return drive.files()
             .create(
@@ -57,12 +59,8 @@ class GoogleDriveShareGateway(
             ).setFields("id").execute().id
     }
 
-    private fun findFolder(folderName: String): File? = drive.files().list()
-        .setQ("mimeType = '$FOLDER_MIME_TYPE' and name = '$folderName' and appProperties has { key = '$APP_PROPERTY_ROLE' and value = '$APP_PROPERTY_ROOT_FOLDER' } and trashed = false")
-        .setSpaces("drive").setFields("files(id, name)").execute().files.orEmpty().firstOrNull()
-
     private fun findFile(folderId: String, fileName: String): File? = drive.files().list()
-        .setQ("'$folderId' in parents and name = '$fileName' and appProperties has { key = '$APP_PROPERTY_ROLE' and value = '$APP_PROPERTY_SHARED_ITEM' } and trashed = false")
+        .setQ(GoogleDriveQueries.canonicalSharedFileQuery(folderId, fileName))
         .setSpaces("drive").setFields("files(id, name)").execute().files.orEmpty().firstOrNull()
 
     private companion object {
@@ -71,6 +69,5 @@ class GoogleDriveShareGateway(
         const val QUE_M_FOLDER             = "QueM"
         const val APP_PROPERTY_ROLE        = "quemRole"
         const val APP_PROPERTY_ROOT_FOLDER = "rootFolder"
-        const val APP_PROPERTY_SHARED_ITEM = "sharedItem"
     }
 }
