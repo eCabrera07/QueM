@@ -23,9 +23,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.wrapContentSize
@@ -61,7 +63,13 @@ fun ItemDetailScreen(
     onEdit: () -> Unit = {},
     onDeleteAttachment: (attachmentId: String) -> Unit = {},
     onRenameAttachment: (attachmentId: String, newTitle: String) -> Unit = { _, _ -> },
-    onDeleteHistoryEntry: (historyEntryId: String) -> Unit = {}
+    onDeleteHistoryEntry: (historyEntryId: String) -> Unit = {},
+    sharedWith: List<String> = emptyList(),
+    isShowingShareDialog: Boolean = false,
+    shareError: String? = null,
+    onShare: () -> Unit = {},
+    onShareConfirm: (email: String) -> Unit = {},
+    onShareDialogDismiss: () -> Unit = {}
 ) {
     val uriHandler = LocalUriHandler.current
 
@@ -76,7 +84,10 @@ fun ItemDetailScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 TextButton(onClick = onBack) { Text("Back") }
-                TextButton(onClick = onEdit) { Text("Edit") }
+                Row {
+                    TextButton(onClick = onEdit) { Text("Edit") }
+                    TextButton(onClick = onShare) { Text("Share") }
+                }
             }
         }
 
@@ -128,6 +139,17 @@ fun ItemDetailScreen(
                         )
                     }
                 }
+            }
+        }
+
+        if (sharedWith.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Shared with ${sharedWith.first()}",
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
 
@@ -190,6 +212,41 @@ fun ItemDetailScreen(
         item {
             Spacer(modifier = Modifier.height(8.dp))
         }
+    }
+
+    if (isShowingShareDialog) {
+        var shareEmail by rememberSaveable { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = onShareDialogDismiss,
+            title = { Text("Share item") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = shareEmail,
+                        onValueChange = { shareEmail = it },
+                        label = { Text("Recipient email") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    shareError?.let { error ->
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { onShareConfirm(shareEmail.trim()) },
+                    enabled = shareEmail.contains("@")
+                ) { Text("Share") }
+            },
+            dismissButton = {
+                TextButton(onClick = onShareDialogDismiss) { Text("Cancel") }
+            }
+        )
     }
 }
 

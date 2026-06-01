@@ -196,4 +196,57 @@ class ItemDetailScreenTest {
 
         assertTrue(selectedStatus == QueueStatus.IN_PROGRESS)
     }
+
+    @Test
+    fun shareButtonDisplayed() {
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("Share").assertIsDisplayed()
+    }
+
+    @Test
+    fun shareButtonInvokesOnShareCallback() {
+        var shared = false
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
+                onBack = {},
+                onShare = { shared = true }
+            )
+        }
+
+        compose.onNodeWithText("Share").performClick()
+
+        assertTrue(shared)
+    }
+
+    @Test
+    fun sharedWithLabelDisplayedWhenItemIsShared() {
+        compose.setContent {
+            ItemDetailScreen(
+                title = "Read contract",
+                description = null,
+                dueDateLabel = null,
+                attachments = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
+                sharedWith = listOf("alice@example.com"),
+                onBack = {}
+            )
+        }
+
+        compose.onNodeWithText("Shared with alice@example.com").assertIsDisplayed()
+    }
 }

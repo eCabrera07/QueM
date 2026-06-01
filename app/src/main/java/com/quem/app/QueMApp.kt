@@ -5,12 +5,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.drive.Drive
 import com.quem.data.repository.QueueRepository
 import com.quem.data.sync.SyncScheduler
 import com.quem.drive.DisconnectedDriveConnectionRepository
 import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.DriveConnectionState
 import com.quem.drive.DrivePickerCoordinator
+import com.quem.drive.GoogleDriveAuthorizationCoordinator
+import com.quem.drive.GoogleDriveShareGateway
 import com.quem.drive.NoOpDrivePickerCoordinator
 import com.quem.ui.ArchiveSearchScreen
 import com.quem.ui.CreateItemScreen
@@ -41,6 +47,8 @@ fun QueMApp(
     val driveConnectionState by viewModel.driveConnectionState.collectAsStateWithLifecycle()
     val archiveQuery by viewModel.archiveQuery.collectAsStateWithLifecycle()
     val archiveResults by viewModel.archiveResults.collectAsStateWithLifecycle()
+    val isShowingShareDialog by viewModel.isShowingShareDialog.collectAsStateWithLifecycle()
+    val shareError           by viewModel.shareError.collectAsStateWithLifecycle()
 
     when (screen) {
         QueMScreen.List -> {
@@ -106,6 +114,28 @@ fun QueMApp(
                 onDeleteAttachment = viewModel::deleteAttachment,
                 onRenameAttachment = viewModel::updateAttachmentTitle,
                 onDeleteHistoryEntry = viewModel::deleteHistoryEntry,
+                sharedWith           = item.sharedWith,
+                isShowingShareDialog = isShowingShareDialog,
+                shareError           = shareError,
+                onShare              = viewModel::showShareDialog,
+                onShareDialogDismiss = viewModel::closeShareDialog,
+                onShareConfirm       = { email ->
+                    val connectedState = driveConnectionState as? DriveConnectionState.Connected
+                    val accountEmail = connectedState?.account?.email
+                    if (accountEmail == null) {
+                        viewModel.setShareError("Sign in to Google Drive to share items")
+                    } else {
+                        val credential = GoogleAccountCredential
+                            .usingOAuth2(context, listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE))
+                            .setSelectedAccountName(accountEmail)
+                        val drive = Drive.Builder(
+                            NetHttpTransport(),
+                            GsonFactory.getDefaultInstance(),
+                            credential
+                        ).setApplicationName("QueM").build()
+                        viewModel.shareItem(email, GoogleDriveShareGateway(drive))
+                    }
+                },
                 onBack = viewModel::backToList
             )
         }

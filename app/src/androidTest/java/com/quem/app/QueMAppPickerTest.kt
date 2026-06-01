@@ -153,7 +153,9 @@ private class FakePickerQueueRepository : QueueRepository {
             updatedAt = Instant.parse("2026-05-29T12:00:00Z"),
             completedAt = null,
             dismissedAt = null,
-            syncState = SyncState.PENDING_SYNC
+            syncState = SyncState.PENDING_SYNC,
+            sharedDriveFileId = null,
+            sharedWith = emptyList()
         )
         items.value = items.value + item
         return item
@@ -227,4 +229,10 @@ private class FakePickerQueueRepository : QueueRepository {
     }
 
     override suspend fun deleteHistoryEntry(historyEntryId: String) = Unit
+
+    override suspend fun shareItem(
+        itemId: String,
+        recipientEmail: String,
+        shareGateway: com.quem.drive.DriveShareGateway
+    ): Boolean = false
 }

@@ -419,6 +419,12 @@ private class FakeQueueRepository private constructor(
 
     override suspend fun deleteHistoryEntry(historyEntryId: String) = Unit
 
+    override suspend fun shareItem(
+        itemId: String,
+        recipientEmail: String,
+        shareGateway: com.quem.drive.DriveShareGateway
+    ): Boolean = false
+
     private fun addAttachment(
         queueItemId: String,
         title: String,
@@ -490,7 +496,9 @@ private fun queueItem(
     updatedAt = FIXED_INSTANT,
     completedAt = null,
     dismissedAt = null,
-    syncState = SyncState.PENDING_SYNC
+    syncState = SyncState.PENDING_SYNC,
+    sharedDriveFileId = null,
+    sharedWith = emptyList()
 )
 
 private fun attachment(

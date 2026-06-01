@@ -151,7 +151,9 @@ class QueueDaoTest {
         updatedAt = updatedAt,
         completedAt = null,
         dismissedAt = dismissedAt,
-        syncState = syncState
+        syncState = syncState,
+        sharedDriveFileId = null,
+        sharedWith = emptyList()
     )
 
     private fun attachment(
