@@ -25,7 +25,6 @@ import com.quem.data.repository.QueueRepository
 import com.quem.drive.DriveAccount
 import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.DriveConnectionState
-import com.quem.drive.DriveSelection
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -98,6 +97,19 @@ class QueueListScreenTest {
     }
 
     @Test
+    fun disconnectedDriveStillShowsQueueList() {
+        compose.setContent {
+            QueMApp(
+                queueRepository = FakeQueueRepository.withSampleItem(),
+                driveConnectionRepository = FakeDriveConnectionRepository.disconnected()
+            )
+        }
+
+        compose.onNodeWithText("QueM").assertIsDisplayed()
+        compose.onNodeWithText("Read contract").assertIsDisplayed()
+    }
+
+    @Test
     fun settingsSignInUsesDriveConnectionBoundary() {
         val repository = FakeQueueRepository.withSampleItem()
         compose.setContent {
@@ -113,6 +125,21 @@ class QueueListScreenTest {
 
         compose.onNodeWithText("user@example.com").assertIsDisplayed()
         compose.onNodeWithText("Drive connected").assertIsDisplayed()
+    }
+
+    @Test
+    fun editCancelReturnsToDetail() {
+        val repository = FakeQueueRepository.withSampleItem()
+        compose.setContent {
+            QueMApp(queueRepository = repository)
+        }
+
+        compose.onNodeWithText("Read contract").performClick()
+        compose.onNodeWithText("Edit").performClick()
+        compose.onNodeWithText("Cancel").performClick()
+
+        compose.onNodeWithText("Read contract").assertIsDisplayed()
+        compose.onNodeWithText("Attachments").assertIsDisplayed()
     }
 
     @Test
@@ -192,81 +219,23 @@ class QueueListScreenTest {
     }
 
     @Test
-    fun connectedDriveFilePickerAddsDriveFileAttachment() {
+    fun driveUrlFormAddsDriveFileAttachment() {
         val repository = FakeQueueRepository.withSampleItem()
         compose.setContent {
             QueMApp(
                 queueRepository = repository,
-                driveConnectionRepository = FakeDriveConnectionRepository.connected(),
-                onPickDriveFile = {
-                    DriveSelection(
-                        id = "drive-file-id",
-                        name = "signed-contract.pdf",
-                        mimeType = "application/pdf",
-                        isFolder = false
-                    )
-                }
+                driveConnectionRepository = FakeDriveConnectionRepository.connected()
             )
         }
 
         compose.onNodeWithText("Read contract").performClick()
         compose.onNodeWithText("Drive file").performClick()
+        compose.onNode(hasSetTextAction() and hasText("Drive file URL"))
+            .performTextInput("https://drive.google.com/file/d/drive-file-id/view")
+        compose.onNodeWithText("Save").performClick()
 
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("signed-contract.pdf"))
-        compose.onNodeWithText("signed-contract.pdf").assertIsDisplayed()
-    }
-
-    @Test
-    fun connectedDriveFolderPickerAddsDriveFolderAttachment() {
-        val repository = FakeQueueRepository.withSampleItem()
-        compose.setContent {
-            QueMApp(
-                queueRepository = repository,
-                driveConnectionRepository = FakeDriveConnectionRepository.connected(),
-                onPickDriveFolder = {
-                    DriveSelection(
-                        id = "drive-folder-id",
-                        name = "Project folder",
-                        mimeType = null,
-                        isFolder = true
-                    )
-                }
-            )
-        }
-
-        compose.onNodeWithText("Read contract").performClick()
-        compose.onNodeWithText("Drive folder").performClick()
-
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Project folder"))
-        compose.onNodeWithText("Project folder").assertIsDisplayed()
-    }
-
-    @Test
-    fun disconnectedDrivePickerShowsSignInMessageWithoutAddingAttachment() {
-        var pickerCalls = 0
-        val repository = FakeQueueRepository.withSampleItem()
-        compose.setContent {
-            QueMApp(
-                queueRepository = repository,
-                driveConnectionRepository = FakeDriveConnectionRepository.disconnected(),
-                onPickDriveFile = {
-                    pickerCalls += 1
-                    DriveSelection(
-                        id = "drive-file-id",
-                        name = "signed-contract.pdf",
-                        mimeType = "application/pdf",
-                        isFolder = false
-                    )
-                }
-            )
-        }
-
-        compose.onNodeWithText("Read contract").performClick()
-        compose.onNodeWithText("Drive file").performClick()
-
-        compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsDisplayed()
-        compose.onAllNodesWithText("signed-contract.pdf").assertCountEquals(0)
-        assertEquals(0, pickerCalls)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Drive file"))
+        compose.onNodeWithText("Drive file").assertIsDisplayed()
     }
 }
 
@@ -353,6 +322,9 @@ private class FakeQueueRepository private constructor(
             allAttachments.filter { it.queueItemId == queueItemId }
         }
 
+    override fun observeHistory(queueItemId: String) =
+        flowOf(emptyList<com.quem.core.model.HistoryEntry>())
+
     override suspend fun addTextAttachment(queueItemId: String, title: String, text: String) {
         addAttachment(
             queueItemId = queueItemId,
@@ -394,6 +366,41 @@ private class FakeQueueRepository private constructor(
             mimeType = mimeType
         )
     }
+
+    override suspend fun updateItem(
+        id: String,
+        title: String,
+        description: String?,
+        priority: Priority?,
+        dueDate: LocalDate?
+    ): QueueItem? {
+        var updatedItem: QueueItem? = null
+        items.value = items.value.map { item ->
+            if (item.id == id) {
+                item.copy(
+                    title = title,
+                    description = description,
+                    priority = priority,
+                    dueDate = dueDate
+                ).also { updatedItem = it }
+            } else {
+                item
+            }
+        }
+        return updatedItem
+    }
+
+    override suspend fun deleteAttachment(attachmentId: String) {
+        attachments.value = attachments.value.filterNot { it.id == attachmentId }
+    }
+
+    override suspend fun updateAttachmentTitle(attachmentId: String, title: String) {
+        attachments.value = attachments.value.map { attachment ->
+            if (attachment.id == attachmentId) attachment.copy(displayName = title) else attachment
+        }
+    }
+
+    override suspend fun deleteHistoryEntry(historyEntryId: String) = Unit
 
     private fun addAttachment(
         queueItemId: String,

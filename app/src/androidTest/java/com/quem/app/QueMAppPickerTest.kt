@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.quem.core.model.Attachment
 import com.quem.core.model.AttachmentType
+import com.quem.core.model.HistoryEntry
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
@@ -182,8 +183,34 @@ private class FakePickerQueueRepository : QueueRepository {
 
     override suspend fun changeStatus(id: String, status: QueueStatus): QueueItem? = null
 
+    override suspend fun updateItem(
+        id: String,
+        title: String,
+        description: String?,
+        priority: Priority?,
+        dueDate: LocalDate?
+    ): QueueItem? {
+        var updatedItem: QueueItem? = null
+        items.value = items.value.map { item ->
+            if (item.id == id) {
+                item.copy(
+                    title = title,
+                    description = description,
+                    priority = priority,
+                    dueDate = dueDate
+                ).also { updatedItem = it }
+            } else {
+                item
+            }
+        }
+        return updatedItem
+    }
+
     override fun observeAttachments(queueItemId: String): Flow<List<Attachment>> =
         attachments.map { list -> list.filter { it.queueItemId == queueItemId } }
+
+    override fun observeHistory(queueItemId: String): Flow<List<HistoryEntry>> =
+        kotlinx.coroutines.flow.flowOf(emptyList())
 
     override suspend fun addTextAttachment(queueItemId: String, title: String, text: String) {}
 
@@ -210,4 +237,16 @@ private class FakePickerQueueRepository : QueueRepository {
             syncState = SyncState.PENDING_SYNC
         )
     }
+
+    override suspend fun deleteAttachment(attachmentId: String) {
+        attachments.value = attachments.value.filterNot { it.id == attachmentId }
+    }
+
+    override suspend fun updateAttachmentTitle(attachmentId: String, title: String) {
+        attachments.value = attachments.value.map { attachment ->
+            if (attachment.id == attachmentId) attachment.copy(displayName = title) else attachment
+        }
+    }
+
+    override suspend fun deleteHistoryEntry(historyEntryId: String) = Unit
 }

@@ -18,8 +18,8 @@ import com.quem.ui.EditItemScreen
 import com.quem.ui.ItemDetailScreen
 import com.quem.ui.QueueListScreen
 import com.quem.ui.QueueViewModel
+import com.quem.ui.QueMScreen
 import com.quem.ui.SettingsScreen
-import com.quem.ui.SignInScreen
 
 @Composable
 fun QueMApp(
@@ -35,114 +35,118 @@ fun QueMApp(
         )
     )
     val selectedStatus by viewModel.selectedStatus.collectAsStateWithLifecycle()
-    val isCreatingItem by viewModel.isCreatingItem.collectAsStateWithLifecycle()
-    val isEditingItem by viewModel.isEditingItem.collectAsStateWithLifecycle()
-    val isShowingSettings by viewModel.isShowingSettings.collectAsStateWithLifecycle()
-    val isShowingArchive by viewModel.isShowingArchive.collectAsStateWithLifecycle()
+    val screen by viewModel.screen.collectAsStateWithLifecycle()
     val items by viewModel.items.collectAsStateWithLifecycle()
     val selectedItem by viewModel.selectedItem.collectAsStateWithLifecycle()
     val driveConnectionState by viewModel.driveConnectionState.collectAsStateWithLifecycle()
     val archiveQuery by viewModel.archiveQuery.collectAsStateWithLifecycle()
     val archiveResults by viewModel.archiveResults.collectAsStateWithLifecycle()
 
-    if (driveConnectionState is DriveConnectionState.Disconnected ||
-        driveConnectionState is DriveConnectionState.Error) {
-        SignInScreen(
-            errorMessage = (driveConnectionState as? DriveConnectionState.Error)?.message,
-            onSignIn = viewModel::requestDriveSignIn
-        )
-        return
-    }
+    when (screen) {
+        QueMScreen.List -> {
+            QueueListScreen(
+                selectedStatus = selectedStatus,
+                items = items,
+                onStatusSelected = viewModel::selectStatus,
+                onItemSelected = viewModel::selectItem,
+                onCreateItem = viewModel::startCreate,
+                onOpenSettings = viewModel::showSettings,
+                onOpenArchive = viewModel::showArchive
+            )
+        }
 
-    if (isShowingSettings) {
-        SettingsScreen(
-            accountEmail = driveConnectionState.accountEmail(),
-            syncStatus = driveConnectionState.syncStatusLabel(),
-            onManualSync = { SyncScheduler.scheduleOnce(context) },
-            onSignIn = viewModel::requestDriveSignIn,
-            onDisconnect = viewModel::disconnectDrive,
-            onBack = viewModel::closeSettings
-        )
-    } else if (isCreatingItem) {
-        CreateItemScreen(
-            onSave = { title, description, priority, dueDate ->
-                viewModel.createItem(
-                    title = title,
-                    description = description,
-                    priority = priority,
-                    dueDate = dueDate
-                )
-            },
-            onCancel = viewModel::cancelCreate
-        )
-    } else if (isEditingItem) {
-        val item = selectedItem ?: return
-        EditItemScreen(
-            initialTitle         = item.title,
-            initialDescription   = item.description ?: "",
-            initialPriority      = item.priorityLabel ?: "",
-            initialDueDate       = item.dueDateIso ?: "",
-            attachments          = item.attachments,
-            onSave               = viewModel::saveEdit,
-            onCancel             = viewModel::cancelEdit,
-            onAddTextAttachment  = viewModel::addTextAttachment,
-            onAddLinkAttachment  = viewModel::addLinkAttachment,
-            onAttachDriveFile    = { title, id, mime -> viewModel.addDriveFileAttachment(title, id, mime) },
-            onAttachDriveFolder  = { title, id -> viewModel.addDriveFolderAttachment(title, id) },
-            onDeleteAttachment   = viewModel::deleteAttachment,
-            onRenameAttachment   = viewModel::updateAttachmentTitle
-        )
-    } else if (isShowingArchive) {
-        ArchiveSearchScreen(
-            query = archiveQuery,
-            results = archiveResults,
-            onQueryChange = viewModel::setArchiveQuery,
-            onItemSelected = viewModel::selectArchiveItem,
-            onBack = viewModel::closeArchive
-        )
-    } else if (selectedItem == null) {
-        QueueListScreen(
-            selectedStatus = selectedStatus,
-            items = items,
-            onStatusSelected = viewModel::selectStatus,
-            onItemSelected = viewModel::selectItem,
-            onCreateItem = viewModel::startCreate,
-            onOpenSettings = viewModel::showSettings,
-            onOpenArchive = viewModel::showArchive
-        )
-    } else {
-        val item = selectedItem ?: return
-        ItemDetailScreen(
-            title         = item.title,
-            description   = item.description,
-            dueDateLabel  = item.dueDateLabel,
-            priorityLabel = item.priorityLabel,
-            attachments   = item.attachments,
-            history       = item.history,
-            syncIndicator  = item.syncIndicator,
-            currentStatus  = item.status,
-            onStatusChange = viewModel::changeStatusOfSelectedItem,
-            onEdit         = viewModel::startEdit,
-            onAddTextAttachment = viewModel::addTextAttachment,
-            onAddLinkAttachment = viewModel::addLinkAttachment,
-            onAttachDriveFile = { title, driveFileId, mimeType ->
-                viewModel.addDriveFileAttachment(
-                    title = title,
-                    driveFileId = driveFileId,
-                    mimeType = mimeType
-                )
-            },
-            onAttachDriveFolder = { title, driveFolderId ->
-                viewModel.addDriveFolderAttachment(
-                    title = title,
-                    driveFolderId = driveFolderId
-                )
-            },
-            onDeleteAttachment    = viewModel::deleteAttachment,
-            onRenameAttachment    = viewModel::updateAttachmentTitle,
-            onDeleteHistoryEntry  = viewModel::deleteHistoryEntry,
-            onBack                = viewModel::backToList
-        )
+        QueMScreen.Create -> {
+            CreateItemScreen(
+                onSave = { title, description, priority, dueDate ->
+                    viewModel.createItem(
+                        title = title,
+                        description = description,
+                        priority = priority,
+                        dueDate = dueDate
+                    )
+                },
+                onCancel = viewModel::cancelCreate
+            )
+        }
+
+        QueMScreen.Settings -> {
+            SettingsScreen(
+                accountEmail = driveConnectionState.accountEmail(),
+                syncStatus = driveConnectionState.syncStatusLabel(),
+                onManualSync = { SyncScheduler.scheduleOnce(context) },
+                onSignIn = viewModel::requestDriveSignIn,
+                onDisconnect = viewModel::disconnectDrive,
+                onBack = viewModel::closeSettings
+            )
+        }
+
+        QueMScreen.Archive -> {
+            ArchiveSearchScreen(
+                query = archiveQuery,
+                results = archiveResults,
+                onQueryChange = viewModel::setArchiveQuery,
+                onItemSelected = viewModel::selectArchiveItem,
+                onBack = viewModel::closeArchive
+            )
+        }
+
+        is QueMScreen.Detail -> {
+            val item = selectedItem ?: return
+            ItemDetailScreen(
+                title = item.title,
+                description = item.description,
+                dueDateLabel = item.dueDateLabel,
+                priorityLabel = item.priorityLabel,
+                attachments = item.attachments,
+                history = item.history,
+                syncIndicator = item.syncIndicator,
+                currentStatus = item.status,
+                onStatusChange = viewModel::changeStatusOfSelectedItem,
+                onEdit = viewModel::startEdit,
+                onAddTextAttachment = viewModel::addTextAttachment,
+                onAddLinkAttachment = viewModel::addLinkAttachment,
+                onAttachDriveFile = { title, driveFileId, mimeType ->
+                    viewModel.addDriveFileAttachment(
+                        title = title,
+                        driveFileId = driveFileId,
+                        mimeType = mimeType
+                    )
+                },
+                onAttachDriveFolder = { title, driveFolderId ->
+                    viewModel.addDriveFolderAttachment(
+                        title = title,
+                        driveFolderId = driveFolderId
+                    )
+                },
+                onDeleteAttachment = viewModel::deleteAttachment,
+                onRenameAttachment = viewModel::updateAttachmentTitle,
+                onDeleteHistoryEntry = viewModel::deleteHistoryEntry,
+                onBack = viewModel::backToList
+            )
+        }
+
+        is QueMScreen.Edit -> {
+            val item = selectedItem ?: return
+            EditItemScreen(
+                initialTitle = item.title,
+                initialDescription = item.description ?: "",
+                initialPriority = item.priorityLabel ?: "",
+                initialDueDate = item.dueDateIso ?: "",
+                attachments = item.attachments,
+                onSave = viewModel::saveEdit,
+                onCancel = viewModel::cancelEdit,
+                onAddTextAttachment = viewModel::addTextAttachment,
+                onAddLinkAttachment = viewModel::addLinkAttachment,
+                onAttachDriveFile = { title, id, mime ->
+                    viewModel.addDriveFileAttachment(title, id, mime)
+                },
+                onAttachDriveFolder = { title, id ->
+                    viewModel.addDriveFolderAttachment(title, id)
+                },
+                onDeleteAttachment = viewModel::deleteAttachment,
+                onRenameAttachment = viewModel::updateAttachmentTitle
+            )
+        }
     }
 }
 
