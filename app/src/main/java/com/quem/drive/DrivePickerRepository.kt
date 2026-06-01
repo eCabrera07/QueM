@@ -3,6 +3,7 @@ package com.quem.drive
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.util.Log
 import androidx.annotation.MainThread
 
 /**
@@ -64,15 +65,23 @@ class DrivePickerRepository(private val contentResolver: ContentResolver) {
     }
 
     private fun Uri.toFileSelection(): DriveSelection? {
-        val documentId = runCatching { DocumentsContract.getDocumentId(this) }.getOrNull() ?: return null
-        val driveId = extractDriveId(documentId) ?: return null
+        val documentId = runCatching { DocumentsContract.getDocumentId(this) }.getOrNull()
+        Log.d("DrivePicker", "toFileSelection uri=$this documentId=$documentId authority=${authority}")
+        documentId ?: return null
+        val driveId = extractDriveId(documentId)
+        Log.d("DrivePicker", "extractDriveId($documentId) -> $driveId")
+        driveId ?: return null
         val (displayName, mimeType) = queryMetadata()
         return DriveSelection(id = driveId, name = displayName ?: driveId, mimeType = mimeType, isFolder = false)
     }
 
     private fun Uri.toFolderSelection(): DriveSelection? {
-        val treeDocId = runCatching { DocumentsContract.getTreeDocumentId(this) }.getOrNull() ?: return null
-        val driveId = extractDriveId(treeDocId) ?: return null
+        val treeDocId = runCatching { DocumentsContract.getTreeDocumentId(this) }.getOrNull()
+        Log.d("DrivePicker", "toFolderSelection uri=$this treeDocId=$treeDocId authority=${authority}")
+        treeDocId ?: return null
+        val driveId = extractDriveId(treeDocId)
+        Log.d("DrivePicker", "extractDriveId($treeDocId) -> $driveId")
+        driveId ?: return null
         val documentUri = DocumentsContract.buildDocumentUriUsingTree(this, treeDocId)
         val (displayName, _) = documentUri.queryMetadata()
         return DriveSelection(id = driveId, name = displayName ?: driveId, mimeType = null, isFolder = true)
