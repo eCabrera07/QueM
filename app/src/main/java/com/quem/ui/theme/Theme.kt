@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Color
 // Extracted from the QueM icon
 private val TealDark    = Color(0xFF0D7A8A)   // deep teal from icon background
 private val TealMid     = Color(0xFF1A8C9B)   // mid teal — brand colour
-private val TealLight   = Color(0xFFB2EBF2)   // light teal container
+private val TealLight   = Color(0xFFEAF6F8)   // almost-white teal
 private val TealOnDark  = Color.White
 
 private val OrangeAccent     = Color(0xFFE8962A)   // orange from character's arm
