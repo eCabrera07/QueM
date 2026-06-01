@@ -1,5 +1,6 @@
 package com.quem.drive
 
+import android.accounts.AccountManager
 import android.app.Activity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
@@ -73,7 +74,11 @@ class GoogleDriveAuthorizationCoordinator(
     }
 
     private fun AuthorizationResult.toGrant(): DriveAuthorizationGrant? {
-        val email = toGoogleSignInAccount()?.email ?: return null
+        val email = toGoogleSignInAccount()?.email
+            ?: AccountManager.get(activity)
+                .getAccountsByType("com.google")
+                .firstOrNull()?.name
+            ?: return null
         return DriveAuthorizationGrant(accountEmail = email)
     }
 
