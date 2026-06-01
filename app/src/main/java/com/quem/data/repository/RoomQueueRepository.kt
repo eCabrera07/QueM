@@ -62,7 +62,9 @@ class RoomQueueRepository(
             updatedAt = now,
             completedAt = null,
             dismissedAt = null,
-            syncState = SyncState.PENDING_SYNC
+            syncState = SyncState.PENDING_SYNC,
+            sharedDriveFileId = null,
+            sharedWith = emptyList()
         )
         dao.upsertItem(item.toEntity())
         runCatching {

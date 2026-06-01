@@ -344,7 +344,9 @@ class RoomQueueRepositoryTest {
                 updatedAt = Instant.parse("2026-05-22T12:00:00Z"),
                 completedAt = null,
                 dismissedAt = null,
-                syncState = SyncState.SYNCED.name
+                syncState = SyncState.SYNCED.name,
+                sharedDriveFileId = null,
+                sharedWith = emptyList()
             )
         )
 
@@ -747,7 +749,9 @@ private fun queueItemEntity(
     updatedAt = now,
     completedAt = null,
     dismissedAt = null,
-    syncState = SyncState.PENDING_SYNC.name
+    syncState = SyncState.PENDING_SYNC.name,
+    sharedDriveFileId = null,
+    sharedWith = emptyList()
 )
 
 private open class FakeQueueDao : QueueDao {

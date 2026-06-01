@@ -214,9 +214,11 @@ private fun queueItemEntity(id: String, now: Instant) = QueueItemEntity(
     tags        = emptyList(),
     createdAt   = now,
     updatedAt   = now,
-    completedAt = null,
-    dismissedAt = null,
-    syncState   = SyncState.PENDING_SYNC.name
+    completedAt       = null,
+    dismissedAt       = null,
+    syncState         = SyncState.PENDING_SYNC.name,
+    sharedDriveFileId = null,
+    sharedWith        = emptyList()
 )
 
 private fun attachmentEntity(id: String, queueItemId: String, now: Instant) = AttachmentEntity(

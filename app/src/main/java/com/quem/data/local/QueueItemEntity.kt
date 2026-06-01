@@ -26,5 +26,7 @@ data class QueueItemEntity(
     val updatedAt: Instant,
     val completedAt: Instant?,
     val dismissedAt: Instant?,
-    val syncState: String
+    val syncState: String,
+    val sharedDriveFileId: String?,     // null = not shared
+    val sharedWith: List<String>        // JSON-encoded via existing Converters.tagsToString
 )

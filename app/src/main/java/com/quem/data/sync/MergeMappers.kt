@@ -18,9 +18,11 @@ fun MetadataQueueItem.toEntity() = QueueItemEntity(
     tags        = tags,
     createdAt   = Instant.parse(createdAt),
     updatedAt   = Instant.parse(updatedAt),
-    completedAt = completedAt?.let { Instant.parse(it) },
-    dismissedAt = dismissedAt?.let { Instant.parse(it) },
-    syncState   = SyncState.SYNCED.name
+    completedAt       = completedAt?.let { Instant.parse(it) },
+    dismissedAt       = dismissedAt?.let { Instant.parse(it) },
+    syncState         = SyncState.SYNCED.name,
+    sharedDriveFileId = null,
+    sharedWith        = emptyList()
 )
 
 fun MetadataAttachment.toEntity() = AttachmentEntity(

@@ -80,6 +80,8 @@ private object TestItems {
         updatedAt = Instant.parse("2026-05-01T12:00:00Z"),
         completedAt = completedAt,
         dismissedAt = dismissedAt,
-        syncState = SyncState.SYNCED
+        syncState = SyncState.SYNCED,
+        sharedDriveFileId = null,
+        sharedWith = emptyList()
     )
 }

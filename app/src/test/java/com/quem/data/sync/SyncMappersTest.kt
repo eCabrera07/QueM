@@ -32,7 +32,9 @@ class SyncMappersTest {
             updatedAt = now,
             completedAt = null,
             dismissedAt = null,
-            syncState = SyncState.PENDING_SYNC
+            syncState = SyncState.PENDING_SYNC,
+            sharedDriveFileId = null,
+            sharedWith = emptyList()
         )
 
         val exportable = item.toExportable()
@@ -68,7 +70,9 @@ class SyncMappersTest {
             updatedAt = completedAt,
             completedAt = completedAt,
             dismissedAt = null,
-            syncState = SyncState.SYNCED
+            syncState = SyncState.SYNCED,
+            sharedDriveFileId = null,
+            sharedWith = emptyList()
         )
 
         val exportable = item.toExportable()

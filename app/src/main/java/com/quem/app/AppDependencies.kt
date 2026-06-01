@@ -17,7 +17,9 @@ class AppDependencies(context: Context) {
         context.applicationContext,
         QueMDatabase::class.java,
         DATABASE_NAME
-    ).build()
+    )
+        .addMigrations(QueMDatabase.MIGRATION_1_2)
+        .build()
 
     val dao: QueueDao = database.queueDao()
 

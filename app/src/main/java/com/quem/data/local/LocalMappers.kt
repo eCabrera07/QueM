@@ -22,7 +22,9 @@ fun QueueItemEntity.toDomain(): QueueItem = QueueItem(
     updatedAt = updatedAt,
     completedAt = completedAt,
     dismissedAt = dismissedAt,
-    syncState = SyncState.valueOf(syncState)
+    syncState = SyncState.valueOf(syncState),
+    sharedDriveFileId = sharedDriveFileId,
+    sharedWith        = sharedWith
 )
 
 fun QueueItem.toEntity(): QueueItemEntity = QueueItemEntity(
@@ -38,7 +40,9 @@ fun QueueItem.toEntity(): QueueItemEntity = QueueItemEntity(
     updatedAt = updatedAt,
     completedAt = completedAt,
     dismissedAt = dismissedAt,
-    syncState = syncState.name
+    syncState = syncState.name,
+    sharedDriveFileId = sharedDriveFileId,
+    sharedWith        = sharedWith
 )
 
 fun AttachmentEntity.toDomain(): Attachment = Attachment(

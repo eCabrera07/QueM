@@ -16,5 +16,7 @@ data class QueueItem(
     val updatedAt: Instant,
     val completedAt: Instant?,
     val dismissedAt: Instant?,
-    val syncState: SyncState
+    val syncState: SyncState,
+    val sharedDriveFileId: String?,     // Drive file ID of QueM/shared-{id}.json; null = not shared
+    val sharedWith: List<String>        // recipient emails; empty = not shared
 )

@@ -944,7 +944,9 @@ private fun queueItem(
     updatedAt = Instant.parse("2026-05-23T12:00:00Z"),
     completedAt = null,
     dismissedAt = null,
-    syncState = syncState
+    syncState = syncState,
+    sharedDriveFileId = null,
+    sharedWith = emptyList()
 )
 
 private fun historyEntry(

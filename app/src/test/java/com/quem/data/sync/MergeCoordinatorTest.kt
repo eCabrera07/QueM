@@ -212,7 +212,7 @@ private fun localItem(id: String, updatedAt: Instant, title: String = "Item $id"
     id = id, driveId = null, title = title, description = null,
     status = "QUEUED", priority = null, dueDate = null, tags = emptyList(),
     createdAt = updatedAt, updatedAt = updatedAt, completedAt = null, dismissedAt = null,
-    syncState = SyncState.PENDING_SYNC.name
+    syncState = SyncState.PENDING_SYNC.name, sharedDriveFileId = null, sharedWith = emptyList()
 )
 
 private fun localAttachment(id: String, queueItemId: String, updatedAt: Instant) = AttachmentEntity(
