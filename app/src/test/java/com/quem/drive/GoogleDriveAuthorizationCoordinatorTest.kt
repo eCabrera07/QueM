@@ -16,6 +16,12 @@ class GoogleDriveAuthorizationCoordinatorTest {
     fun requestedScopeUrisIncludeDriveFileScope() {
         val scopes = GoogleDriveAuthorizationCoordinator.requiredScopeUris()
 
-        assertEquals(listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE), scopes)
+        assertEquals(
+            listOf(
+                GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE,
+                GoogleDriveAuthorizationCoordinator.EMAIL_SCOPE
+            ),
+            scopes
+        )
     }
 }

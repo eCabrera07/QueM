@@ -75,9 +75,7 @@ class RoomQueueRepository(
                     createdAt = now
                 )
             )
-        }.onFailure { e ->
-            Log.w(TAG, "Failed to write history entry", e)
-        }
+        }.onFailure(::logHistoryWriteFailure)
         return item
     }
 
@@ -108,9 +106,7 @@ class RoomQueueRepository(
                     createdAt = now
                 )
             )
-        }.onFailure { e ->
-            Log.w(TAG, "Failed to write history entry", e)
-        }
+        }.onFailure(::logHistoryWriteFailure)
 
         return dao.observeItem(id).first()?.toDomain()
     }
@@ -143,9 +139,7 @@ class RoomQueueRepository(
                     createdAt   = now
                 )
             )
-        }.onFailure { e ->
-            Log.w(TAG, "Failed to write history entry", e)
-        }
+        }.onFailure(::logHistoryWriteFailure)
 
         return dao.observeItem(id).first()?.toDomain()
     }
@@ -238,9 +232,7 @@ class RoomQueueRepository(
                     createdAt = now
                 )
             )
-        }.onFailure { e ->
-            Log.w(TAG, "Failed to write history entry", e)
-        }
+        }.onFailure(::logHistoryWriteFailure)
     }
 
     override suspend fun deleteAttachment(attachmentId: String) {
@@ -255,6 +247,12 @@ class RoomQueueRepository(
 
     override suspend fun deleteHistoryEntry(historyEntryId: String) {
         dao.deleteHistoryEntry(historyEntryId)
+    }
+
+    private fun logHistoryWriteFailure(error: Throwable) {
+        runCatching {
+            Log.w(TAG, "Failed to write history entry", error)
+        }
     }
 
     private companion object {

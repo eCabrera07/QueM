@@ -170,6 +170,9 @@ private class FakeMergeDao : QueueDao {
     override suspend fun markAttachmentsSynced() = throw UnsupportedOperationException()
     override suspend fun updateStatus(id: String, status: String, updatedAt: Instant, completedAt: Instant?, dismissedAt: Instant?): Int = throw UnsupportedOperationException()
     override suspend fun updateItemFields(id: String, title: String, description: String?, priority: String?, dueDate: LocalDate?, updatedAt: Instant): Int = throw UnsupportedOperationException()
+    override suspend fun deleteAttachment(id: String) = throw UnsupportedOperationException()
+    override suspend fun updateAttachmentTitle(id: String, title: String, updatedAt: Instant) = throw UnsupportedOperationException()
+    override suspend fun deleteHistoryEntry(id: String) = throw UnsupportedOperationException()
     override fun observeAttachments(id: String): Flow<List<AttachmentEntity>> = throw UnsupportedOperationException()
     override fun observeHistory(id: String): Flow<List<HistoryEntryEntity>> = throw UnsupportedOperationException()
 }

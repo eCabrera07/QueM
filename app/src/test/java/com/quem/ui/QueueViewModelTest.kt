@@ -168,8 +168,8 @@ class QueueViewModelTest {
         viewModel.selectItem("item-1")
         advanceUntilIdle()
 
-        assertEquals(listOf("Notes", "Spec"), viewModel.selectedItem.value?.attachments)
-        assertEquals(emptyList<String>(), viewModel.selectedItem.value?.history)
+        assertEquals(listOf("Notes", "Spec"), viewModel.selectedItem.value?.attachments?.map { it.displayName })
+        assertEquals(emptyList<String>(), viewModel.selectedItem.value?.history?.map { it.displayText })
     }
 
     @Test
@@ -188,7 +188,7 @@ class QueueViewModelTest {
         viewModel.addTextAttachment("Note", "Remember this")
         advanceUntilIdle()
 
-        assertEquals(listOf("Note"), viewModel.selectedItem.value?.attachments)
+        assertEquals(listOf("Note"), viewModel.selectedItem.value?.attachments?.map { it.displayName })
     }
 
     @Test
@@ -207,7 +207,7 @@ class QueueViewModelTest {
         viewModel.addLinkAttachment("Reference", "https://example.com")
         advanceUntilIdle()
 
-        assertEquals(listOf("Reference"), viewModel.selectedItem.value?.attachments)
+        assertEquals(listOf("Reference"), viewModel.selectedItem.value?.attachments?.map { it.displayName })
     }
 
     @Test
@@ -248,7 +248,7 @@ class QueueViewModelTest {
         )
         advanceUntilIdle()
 
-        assertEquals(listOf("contract.pdf"), viewModel.selectedItem.value?.attachments)
+        assertEquals(listOf("contract.pdf"), viewModel.selectedItem.value?.attachments?.map { it.displayName })
     }
 
     @Test
@@ -270,7 +270,7 @@ class QueueViewModelTest {
         )
         advanceUntilIdle()
 
-        assertEquals(listOf("Project folder"), viewModel.selectedItem.value?.attachments)
+        assertEquals(listOf("Project folder"), viewModel.selectedItem.value?.attachments?.map { it.displayName })
     }
 
     @Test
@@ -369,7 +369,7 @@ class QueueViewModelTest {
         viewModel.selectItem("item-1")
         advanceUntilIdle()
 
-        assertEquals(emptyList<String>(), viewModel.selectedItem.value?.history)
+        assertEquals(emptyList<String>(), viewModel.selectedItem.value?.history?.map { it.displayText })
     }
 
     @Test
@@ -394,7 +394,7 @@ class QueueViewModelTest {
 
         assertEquals(
             listOf("2 hours ago · Marked as Done", "3 hours ago · Created"),
-            viewModel.selectedItem.value?.history
+            viewModel.selectedItem.value?.history?.map { it.displayText }
         )
     }
 

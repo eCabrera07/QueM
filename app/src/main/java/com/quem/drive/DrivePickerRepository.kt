@@ -5,6 +5,8 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.util.Log
 import androidx.annotation.MainThread
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 
 /**
  * Persists Drive picker callbacks across Activity recreation.
@@ -106,9 +108,35 @@ class DrivePickerRepository(private val contentResolver: ContentResolver) {
  * URL-encoded variants are decoded before parsing.
  */
 internal fun extractDriveId(documentId: String): String? {
-    val decoded = if ('%' in documentId) Uri.decode(documentId) else documentId
+    val decoded = decodePercentEscapes(documentId)
     return decoded.split("/")
         .lastOrNull { it.startsWith("doc=") }
         ?.removePrefix("doc=")
         ?.takeIf { it.isNotEmpty() }
+}
+
+private fun decodePercentEscapes(value: String): String {
+    if ('%' !in value) return value
+
+    val decoded = StringBuilder(value.length)
+    var index = 0
+    while (index < value.length) {
+        if (value[index] == '%' && index + 2 < value.length) {
+            val bytes = ByteArrayOutputStream()
+            while (index + 2 < value.length && value[index] == '%') {
+                val byte = value.substring(index + 1, index + 3).toIntOrNull(16) ?: break
+                bytes.write(byte)
+                index += 3
+            }
+            if (bytes.size() > 0) {
+                decoded.append(bytes.toByteArray().toString(StandardCharsets.UTF_8))
+                continue
+            }
+        }
+
+        decoded.append(value[index])
+        index += 1
+    }
+
+    return decoded.toString()
 }

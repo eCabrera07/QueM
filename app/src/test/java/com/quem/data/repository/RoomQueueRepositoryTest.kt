@@ -750,7 +750,7 @@ private fun queueItemEntity(
     syncState = SyncState.PENDING_SYNC.name
 )
 
-private class FakeQueueDao : QueueDao {
+private open class FakeQueueDao : QueueDao {
     private val entities = MutableStateFlow<List<QueueItemEntity>>(emptyList())
     private val attachmentEntities = MutableStateFlow<List<AttachmentEntity>>(emptyList())
     private val historyEntities = MutableStateFlow<List<HistoryEntryEntity>>(emptyList())
