@@ -27,7 +27,7 @@ class ItemDetailScreenTest {
                 title = "Read contract",
                 description = null,
                 dueDateLabel = null,
-                attachments = listOf("contract.pdf"),
+                attachments = listOf(AttachmentUi(displayName = "contract.pdf", url = null, driveFileId = null, isLink = false, isDriveFile = false, isDriveFolder = false)),
                 history = listOf("Created item"),
                 onDismiss = {},
                 onDone = {},

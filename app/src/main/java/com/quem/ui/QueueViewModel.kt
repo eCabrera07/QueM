@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.quem.core.model.Attachment
+import com.quem.core.model.AttachmentType
 import com.quem.core.model.HistoryEntry
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
@@ -32,6 +34,15 @@ import java.time.LocalDate
 
 enum class SyncIndicator { PENDING, SYNCING, ERROR }
 
+data class AttachmentUi(
+    val displayName: String,
+    val url: String?,
+    val driveFileId: String?,
+    val isLink: Boolean,
+    val isDriveFile: Boolean,
+    val isDriveFolder: Boolean
+)
+
 data class QueueItemDetailUi(
     val id: String,
     val title: String,
@@ -39,7 +50,7 @@ data class QueueItemDetailUi(
     val priorityLabel: String?,
     val dueDateLabel: String?,
     val dueDateIso: String?,    // ISO-8601 (e.g. "2026-06-01") — use for pre-populating edit forms
-    val attachments: List<String>,
+    val attachments: List<AttachmentUi>,
     val history: List<String>,
     val syncIndicator: SyncIndicator?
 )
@@ -101,7 +112,7 @@ class QueueViewModel(
                     ) { item, attachments, history ->
                         val now = clock.now()
                         item?.toDetailUi(
-                            attachments = attachments.map { it.displayName },
+                            attachments = attachments.map { it.toAttachmentUi() },
                             history = history.map { it.toDisplayString(now) }
                         )
                     }
@@ -371,7 +382,7 @@ private fun QueueItem.toListItemUi(attachmentCount: Int) = QueueListItemUi(
     syncIndicator     = syncState.toIndicator()
 )
 
-private fun QueueItem.toDetailUi(attachments: List<String>, history: List<String>) = QueueItemDetailUi(
+private fun QueueItem.toDetailUi(attachments: List<AttachmentUi>, history: List<String>) = QueueItemDetailUi(
     id            = id,
     title         = title,
     description   = description,
@@ -385,6 +396,15 @@ private fun QueueItem.toDetailUi(attachments: List<String>, history: List<String
 
 private fun Int.toAttachmentSummary(): String =
     if (this == 1) "1 attachment" else "$this attachments"
+
+private fun Attachment.toAttachmentUi() = AttachmentUi(
+    displayName   = displayName,
+    url           = url,
+    driveFileId   = driveFileId,
+    isLink        = type == AttachmentType.LINK,
+    isDriveFile   = type == AttachmentType.DRIVE_FILE,
+    isDriveFolder = type == AttachmentType.DRIVE_FOLDER
+)
 
 private fun SyncState.toIndicator(): SyncIndicator? = when (this) {
     SyncState.SYNCED       -> null

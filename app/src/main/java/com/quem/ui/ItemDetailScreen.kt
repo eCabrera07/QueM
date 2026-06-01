@@ -31,8 +31,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -41,7 +44,7 @@ fun ItemDetailScreen(
     title: String,
     description: String?,
     dueDateLabel: String?,
-    attachments: List<String>,
+    attachments: List<AttachmentUi>,
     history: List<String>,
     priorityLabel: String? = null,
     syncIndicator: SyncIndicator? = null,
@@ -56,6 +59,7 @@ fun ItemDetailScreen(
     onAttachDriveFile: () -> Unit = {},
     onAttachDriveFolder: () -> Unit = {}
 ) {
+    val uriHandler = LocalUriHandler.current
     var attachmentFormType by rememberSaveable { mutableStateOf<String?>(null) }
     var attachmentTitle by rememberSaveable { mutableStateOf("") }
     var attachmentValue by rememberSaveable { mutableStateOf("") }
@@ -223,7 +227,20 @@ fun ItemDetailScreen(
             }
         } else {
             items(attachments) { attachment ->
-                DetailListText(attachment)
+                val url = when {
+                    attachment.isLink -> attachment.url
+                    attachment.isDriveFile || attachment.isDriveFolder ->
+                        attachment.driveFileId?.let { "https://drive.google.com/open?id=$it" }
+                    else -> null
+                }
+                if (url != null) {
+                    AttachmentLinkText(
+                        text = attachment.displayName,
+                        onClick = { runCatching { uriHandler.openUri(url) } }
+                    )
+                } else {
+                    DetailListText(attachment.displayName)
+                }
             }
         }
 
@@ -323,6 +340,20 @@ private fun DetailListText(text: String) {
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         style = MaterialTheme.typography.bodyMedium
+    )
+}
+
+@Composable
+private fun AttachmentLinkText(text: String, onClick: () -> Unit) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.primary,
+        textDecoration = TextDecoration.Underline
     )
 }
 
