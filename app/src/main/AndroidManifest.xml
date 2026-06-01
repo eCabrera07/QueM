@@ -4,6 +4,8 @@
     <application
         android:name=".QueMApplication"
         android:allowBackup="true"
+        android:icon="@mipmap/quem_icon"
+        android:roundIcon="@mipmap/quem_icon_round"
         android:label="QueM"
         android:theme="@style/Theme.QueM">
         <activity
