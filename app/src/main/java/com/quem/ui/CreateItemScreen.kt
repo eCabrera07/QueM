@@ -2,15 +2,12 @@ package com.quem.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,7 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -31,80 +27,66 @@ fun CreateItemScreen(
     var priority by rememberSaveable { mutableStateOf<String?>(null) }
     var dueDate by rememberSaveable { mutableStateOf<String?>(null) }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Text(
-                text = "Create item",
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.headlineMedium
+    Scaffold(
+        topBar = {
+            QueMTopBar(title = "Create item", onBack = onCancel)
+        },
+        bottomBar = {
+            BottomActionBar(
+                primaryLabel = "Save",
+                onPrimary = {
+                    onSave(
+                        title.trim(),
+                        description.trim().takeUnless { it.isBlank() },
+                        priority,
+                        dueDate
+                    )
+                },
+                secondaryLabel = "Cancel",
+                onSecondary = onCancel,
+                primaryEnabled = title.isNotBlank()
             )
         }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Title") },
+                    singleLine = true
+                )
+            }
 
-        item {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Title") },
-                singleLine = true
-            )
-        }
+            item {
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Description") },
+                    minLines = 3
+                )
+            }
 
-        item {
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Description") },
-                minLines = 3
-            )
-        }
+            item {
+                PriorityDropdown(
+                    selected = priority,
+                    onSelect = { priority = it }
+                )
+            }
 
-        item {
-            PriorityDropdown(
-                selected = priority,
-                onSelect = { priority = it }
-            )
-        }
-
-        item {
-            DueDatePicker(
-                selected = dueDate,
-                onSelect = { dueDate = it }
-            )
-        }
-
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onCancel,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Cancel", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Button(
-                    onClick = {
-                        onSave(
-                            title.trim(),
-                            description.trim().takeUnless { it.isBlank() },
-                            priority,
-                            dueDate
-                        )
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = title.isNotBlank()
-                ) {
-                    Text("Save", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+            item {
+                DueDatePicker(
+                    selected = dueDate,
+                    onSelect = { dueDate = it }
+                )
             }
         }
     }

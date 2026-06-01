@@ -152,7 +152,6 @@ class QueueListScreenTest {
 
         compose.onNodeWithText("Read contract").performClick()
         compose.onNodeWithText("Edit").performClick()
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Cancel"))
         compose.onNodeWithText("Cancel").performClick()
 
         compose.onNodeWithText("Read contract").assertIsDisplayed()
@@ -227,7 +226,6 @@ class QueueListScreenTest {
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("Note"))
         compose.onNodeWithText("Note").assertIsDisplayed()
 
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Cancel"))
         compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithText("Back").performClick()
 

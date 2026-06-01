@@ -25,7 +25,7 @@ class CreateItemScreenTest {
         }
 
         compose.onNodeWithText("Title").assertIsDisplayed()
-        compose.onNodeWithText("Due date optional").assertIsDisplayed()
+        compose.onNodeWithText("Due date (optional)").assertIsDisplayed()
         compose.onNodeWithText("Save").assertIsDisplayed()
     }
 
