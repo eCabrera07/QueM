@@ -22,6 +22,7 @@ import com.quem.drive.DriveConnectionState
 import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -72,14 +73,17 @@ class QueueViewModel(
     val selectedStatus: StateFlow<QueueStatus> =
         savedStateHandle.getStateFlow(KEY_SELECTED_STATUS, QueueStatus.QUEUED)
 
-    val isCreatingItem: StateFlow<Boolean> =
-        savedStateHandle.getStateFlow(KEY_IS_CREATING_ITEM, false)
-
-    val isShowingSettings: StateFlow<Boolean> =
-        savedStateHandle.getStateFlow(KEY_IS_SHOWING_SETTINGS, false)
-
     private val selectedItemId: StateFlow<String?> =
         savedStateHandle.getStateFlow(KEY_SELECTED_ITEM_ID, null)
+
+    private val _screen = MutableStateFlow(restoredScreen())
+    val screen: StateFlow<QueMScreen> = _screen
+
+    val isCreatingItem: StateFlow<Boolean> =
+        savedStateHandle.getStateFlow(KEY_IS_CREATING_ITEM, screen.value == QueMScreen.Create)
+
+    val isShowingSettings: StateFlow<Boolean> =
+        savedStateHandle.getStateFlow(KEY_IS_SHOWING_SETTINGS, screen.value == QueMScreen.Settings)
 
     val driveConnectionState: StateFlow<DriveConnectionState> =
         driveConnectionRepository.state
@@ -132,10 +136,10 @@ class QueueViewModel(
             )
 
     val isShowingArchive: StateFlow<Boolean> =
-        savedStateHandle.getStateFlow(KEY_IS_SHOWING_ARCHIVE, false)
+        savedStateHandle.getStateFlow(KEY_IS_SHOWING_ARCHIVE, screen.value == QueMScreen.Archive)
 
     val isEditingItem: StateFlow<Boolean> =
-        savedStateHandle.getStateFlow(KEY_IS_EDITING_ITEM, false)
+        savedStateHandle.getStateFlow(KEY_IS_EDITING_ITEM, screen.value is QueMScreen.Edit)
 
     val archiveQuery: StateFlow<String> =
         savedStateHandle.getStateFlow(KEY_ARCHIVE_QUERY, "")
@@ -159,55 +163,55 @@ class QueueViewModel(
                 initialValue = emptyList()
             )
 
+    init {
+        syncCompatibilityFlags(screen.value)
+    }
+
     fun selectStatus(status: QueueStatus) {
         savedStateHandle[KEY_SELECTED_STATUS] = status
     }
 
     fun selectItem(id: String) {
         savedStateHandle[KEY_SELECTED_ITEM_ID] = id
-        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
+        setScreen(ROUTE_DETAIL, selectedItemId = id)
     }
 
     fun startCreate() {
-        savedStateHandle[KEY_IS_CREATING_ITEM] = true
-        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
+        savedStateHandle[KEY_SELECTED_ITEM_ID] = null
+        setScreen(ROUTE_CREATE, selectedItemId = null)
     }
 
     fun cancelCreate() {
-        savedStateHandle[KEY_IS_CREATING_ITEM] = false
+        setScreen(ROUTE_LIST)
     }
 
     fun showSettings() {
         savedStateHandle[KEY_SELECTED_ITEM_ID] = null
-        savedStateHandle[KEY_IS_CREATING_ITEM] = false
-        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = true
+        setScreen(ROUTE_SETTINGS, selectedItemId = null)
     }
 
     fun closeSettings() {
-        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
+        setScreen(ROUTE_LIST)
     }
 
     fun showArchive() {
-        savedStateHandle[KEY_ARCHIVE_QUERY]       = ""
-        savedStateHandle[KEY_IS_SHOWING_ARCHIVE]  = true
-        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
-        savedStateHandle[KEY_SELECTED_ITEM_ID]    = null
-        savedStateHandle[KEY_IS_CREATING_ITEM]    = false
+        savedStateHandle[KEY_ARCHIVE_QUERY] = ""
+        savedStateHandle[KEY_SELECTED_ITEM_ID] = null
+        setScreen(ROUTE_ARCHIVE, selectedItemId = null)
     }
 
     fun closeArchive() {
-        savedStateHandle[KEY_IS_SHOWING_ARCHIVE] = false
+        setScreen(ROUTE_LIST)
     }
 
     fun startEdit() {
-        savedStateHandle[KEY_IS_EDITING_ITEM]     = true
-        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
-        savedStateHandle[KEY_IS_SHOWING_ARCHIVE]  = false
-        savedStateHandle[KEY_IS_CREATING_ITEM]    = false
+        val id = selectedItemId.value ?: return
+        setScreen(ROUTE_EDIT, selectedItemId = id)
     }
 
     fun cancelEdit() {
-        savedStateHandle[KEY_IS_EDITING_ITEM] = false
+        val id = selectedItemId.value
+        setScreen(if (id == null) ROUTE_LIST else ROUTE_DETAIL, selectedItemId = id)
     }
 
     fun saveEdit(title: String, description: String?, priority: String?, dueDate: String?) {
@@ -220,13 +224,13 @@ class QueueViewModel(
                 priority    = priority.toPriorityOrNull(),
                 dueDate     = dueDate.toLocalDateOrNull()
             )
-            savedStateHandle[KEY_IS_EDITING_ITEM] = false
+            setScreen(ROUTE_DETAIL, selectedItemId = id)
         }
     }
 
     fun selectArchiveItem(id: String) {
-        savedStateHandle[KEY_IS_SHOWING_ARCHIVE] = false
-        savedStateHandle[KEY_SELECTED_ITEM_ID]   = id
+        savedStateHandle[KEY_SELECTED_ITEM_ID] = id
+        setScreen(ROUTE_DETAIL, selectedItemId = id)
     }
 
     fun setArchiveQuery(query: String) {
@@ -256,7 +260,7 @@ class QueueViewModel(
             )
             savedStateHandle[KEY_SELECTED_STATUS] = QueueStatus.QUEUED
             savedStateHandle[KEY_SELECTED_ITEM_ID] = created.id
-            savedStateHandle[KEY_IS_CREATING_ITEM] = false
+            setScreen(ROUTE_DETAIL, selectedItemId = created.id)
         }
     }
 
@@ -326,7 +330,58 @@ class QueueViewModel(
 
     fun backToList() {
         savedStateHandle[KEY_SELECTED_ITEM_ID] = null
-        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
+        setScreen(ROUTE_LIST, selectedItemId = null)
+    }
+
+    fun navigateBack() {
+        when (val currentScreen = screen.value) {
+            QueMScreen.List -> Unit
+            QueMScreen.Create,
+            QueMScreen.Settings,
+            QueMScreen.Archive -> setScreen(ROUTE_LIST)
+            is QueMScreen.Detail -> backToList()
+            is QueMScreen.Edit -> {
+                savedStateHandle[KEY_SELECTED_ITEM_ID] = currentScreen.itemId
+                setScreen(ROUTE_DETAIL, selectedItemId = currentScreen.itemId)
+            }
+        }
+    }
+
+    private fun setScreen(route: String, selectedItemId: String? = this.selectedItemId.value) {
+        val nextSelectedItemId = selectedItemId.takeIf { route.isItemRoute() }
+        val nextScreen = route.toScreen(nextSelectedItemId)
+        savedStateHandle[KEY_SCREEN_ROUTE] = nextScreen.toRoute()
+        savedStateHandle[KEY_SELECTED_ITEM_ID] = nextSelectedItemId
+        syncCompatibilityFlags(nextScreen)
+        _screen.value = nextScreen
+    }
+
+    private fun syncCompatibilityFlags(screen: QueMScreen) {
+        savedStateHandle[KEY_IS_CREATING_ITEM] = screen == QueMScreen.Create
+        savedStateHandle[KEY_IS_SHOWING_SETTINGS] = screen == QueMScreen.Settings
+        savedStateHandle[KEY_IS_SHOWING_ARCHIVE] = screen == QueMScreen.Archive
+        savedStateHandle[KEY_IS_EDITING_ITEM] = screen is QueMScreen.Edit
+    }
+
+    private fun restoredScreen(): QueMScreen {
+        val route = restoredRoute()
+        val restoredSelectedItemId = selectedItemId.value.takeIf { route.isItemRoute() }
+        val restoredScreen = route.toScreen(restoredSelectedItemId)
+        savedStateHandle[KEY_SCREEN_ROUTE] = restoredScreen.toRoute()
+        savedStateHandle[KEY_SELECTED_ITEM_ID] = restoredSelectedItemId
+        return restoredScreen
+    }
+
+    private fun restoredRoute(): String =
+        savedStateHandle.get<String>(KEY_SCREEN_ROUTE) ?: legacyRoute()
+
+    private fun legacyRoute(): String = when {
+        savedStateHandle.get<Boolean>(KEY_IS_SHOWING_SETTINGS) == true -> ROUTE_SETTINGS
+        savedStateHandle.get<Boolean>(KEY_IS_CREATING_ITEM) == true -> ROUTE_CREATE
+        savedStateHandle.get<Boolean>(KEY_IS_EDITING_ITEM) == true -> ROUTE_EDIT
+        savedStateHandle.get<Boolean>(KEY_IS_SHOWING_ARCHIVE) == true -> ROUTE_ARCHIVE
+        selectedItemId.value != null -> ROUTE_DETAIL
+        else -> ROUTE_LIST
     }
 
     private fun addDriveAttachment(
@@ -387,13 +442,42 @@ class QueueViewModel(
             }
 
         private const val KEY_SELECTED_STATUS = "selectedStatus"
+        private const val KEY_SCREEN_ROUTE = "screenRoute"
         private const val KEY_IS_CREATING_ITEM = "isCreatingItem"
         private const val KEY_IS_SHOWING_SETTINGS = "isShowingSettings"
         private const val KEY_SELECTED_ITEM_ID = "selectedItemId"
         private const val KEY_IS_SHOWING_ARCHIVE = "isShowingArchive"
         private const val KEY_ARCHIVE_QUERY      = "archiveQuery"
         private const val KEY_IS_EDITING_ITEM    = "isEditingItem"
+
+        private const val ROUTE_LIST = "list"
+        private const val ROUTE_CREATE = "create"
+        private const val ROUTE_SETTINGS = "settings"
+        private const val ROUTE_ARCHIVE = "archive"
+        private const val ROUTE_DETAIL = "detail"
+        private const val ROUTE_EDIT = "edit"
     }
+}
+
+private fun String.toScreen(selectedItemId: String?): QueMScreen = when (this) {
+    "create" -> QueMScreen.Create
+    "settings" -> QueMScreen.Settings
+    "archive" -> QueMScreen.Archive
+    "detail" -> selectedItemId?.let(QueMScreen::Detail) ?: QueMScreen.List
+    "edit" -> selectedItemId?.let(QueMScreen::Edit) ?: QueMScreen.List
+    else -> QueMScreen.List
+}
+
+private fun String.isItemRoute(): Boolean =
+    this == "detail" || this == "edit"
+
+private fun QueMScreen.toRoute(): String = when (this) {
+    QueMScreen.List -> "list"
+    QueMScreen.Create -> "create"
+    QueMScreen.Settings -> "settings"
+    QueMScreen.Archive -> "archive"
+    is QueMScreen.Detail -> "detail"
+    is QueMScreen.Edit -> "edit"
 }
 
 private fun QueueItem.toListItemUi(attachmentCount: Int) = QueueListItemUi(

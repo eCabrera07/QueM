@@ -60,6 +60,69 @@ class QueueViewModelTest {
     }
 
     @Test
+    fun startCreateMovesToCreateAndBackReturnsToList() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(
+            title = "Read contract",
+            description = "Legal notes",
+            priority = null,
+            dueDate = null
+        )
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+        viewModel.startCreate()
+        advanceUntilIdle()
+
+        assertEquals(QueMScreen.Create, viewModel.screen.value)
+        assertNull(viewModel.selectedItem.value)
+
+        viewModel.navigateBack()
+
+        assertEquals(QueMScreen.List, viewModel.screen.value)
+    }
+
+    @Test
+    fun nonItemRoutesClearSelectedItemWhenLeavingToList() = runTest {
+        val routes = listOf(
+            "create" to QueueViewModel::cancelCreate,
+            "settings" to QueueViewModel::closeSettings,
+            "archive" to QueueViewModel::closeArchive,
+            "create" to QueueViewModel::navigateBack,
+            "settings" to QueueViewModel::navigateBack,
+            "archive" to QueueViewModel::navigateBack
+        )
+
+        routes.forEach { (route, leaveRoute) ->
+            val repository = FakeQueueRepository()
+            repository.createItem(
+                title = "Read contract",
+                description = "Legal notes",
+                priority = null,
+                dueDate = null
+            )
+            val viewModel = QueueViewModel(
+                repository = repository,
+                savedStateHandle = SavedStateHandle(
+                    mapOf(
+                        "screenRoute" to route,
+                        "selectedItemId" to "item-1"
+                    )
+                )
+            )
+            collectSelectedItem(viewModel)
+
+            leaveRoute(viewModel)
+            advanceUntilIdle()
+
+            assertEquals("route=$route", QueMScreen.List, viewModel.screen.value)
+            assertNull("route=$route", viewModel.selectedItem.value)
+        }
+    }
+
+    @Test
     fun createItemParsesPriorityAndDueDateMetadata() = runTest {
         val repository = FakeQueueRepository()
         val viewModel = QueueViewModel(repository)
@@ -353,7 +416,82 @@ class QueueViewModelTest {
 
         assertEquals(QueueStatus.DISMISSED, viewModel.selectedStatus.value)
         assertEquals(true, viewModel.isCreatingItem.value)
-        assertEquals("item-1", viewModel.selectedItem.value?.id)
+        assertNull(viewModel.selectedItem.value)
+    }
+
+    @Test
+    fun detailAndEditScreensRestoreWithSelectedItemId() = runTest {
+        val cases = listOf(
+            "detail" to QueMScreen.Detail("item-1"),
+            "edit" to QueMScreen.Edit("item-1")
+        )
+
+        cases.forEach { (route, expectedScreen) ->
+            val repository = FakeQueueRepository()
+            repository.createItem(
+                title = "Read contract",
+                description = "Legal notes",
+                priority = null,
+                dueDate = null
+            )
+            val viewModel = QueueViewModel(
+                repository = repository,
+                savedStateHandle = SavedStateHandle(
+                    mapOf(
+                        "screenRoute" to route,
+                        "selectedItemId" to "item-1"
+                    )
+                )
+            )
+            collectSelectedItem(viewModel)
+
+            runCurrent()
+
+            assertEquals("route=$route", expectedScreen, viewModel.screen.value)
+            assertEquals("route=$route", "item-1", viewModel.selectedItem.value?.id)
+            assertEquals("route=$route", route == "edit", viewModel.isEditingItem.value)
+        }
+    }
+
+    @Test
+    fun detailAndEditScreensRestoreToListWithoutSelectedItemId() = runTest {
+        listOf("detail", "edit").forEach { route ->
+            val viewModel = QueueViewModel(
+                repository = FakeQueueRepository(),
+                savedStateHandle = SavedStateHandle(mapOf("screenRoute" to route))
+            )
+            collectSelectedItem(viewModel)
+
+            runCurrent()
+
+            assertEquals("route=$route", QueMScreen.List, viewModel.screen.value)
+            assertNull("route=$route", viewModel.selectedItem.value)
+            assertFalse("route=$route", viewModel.isEditingItem.value)
+        }
+    }
+
+    @Test
+    fun legacyBooleanFlagsSynchronizeAfterScreenRestore() = runTest {
+        val viewModel = QueueViewModel(
+            repository = FakeQueueRepository(),
+            savedStateHandle = SavedStateHandle(
+                mapOf(
+                    "screenRoute" to "archive",
+                    "isCreatingItem" to true,
+                    "isShowingSettings" to true,
+                    "isShowingArchive" to false,
+                    "isEditingItem" to true
+                )
+            )
+        )
+
+        runCurrent()
+
+        assertEquals(QueMScreen.Archive, viewModel.screen.value)
+        assertFalse(viewModel.isCreatingItem.value)
+        assertFalse(viewModel.isShowingSettings.value)
+        assertEquals(true, viewModel.isShowingArchive.value)
+        assertFalse(viewModel.isEditingItem.value)
     }
 
     @Test
@@ -548,6 +686,42 @@ class QueueViewModelTest {
         assertFalse(viewModel.isEditingItem.value)
         assertEquals("New title", viewModel.selectedItem.value?.title)
         assertEquals("New desc", viewModel.selectedItem.value?.description)
+    }
+
+    @Test
+    fun editBackReturnsToSelectedItemDetail() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(title = "Old title", description = null, priority = null, dueDate = null)
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+        viewModel.startEdit()
+
+        assertEquals(QueMScreen.Edit("item-1"), viewModel.screen.value)
+
+        viewModel.navigateBack()
+
+        assertEquals(QueMScreen.Detail("item-1"), viewModel.screen.value)
+        assertEquals("item-1", viewModel.selectedItem.value?.id)
+    }
+
+    @Test
+    fun archiveItemSelectionOpensDetail() = runTest {
+        val repository = FakeQueueRepository()
+        repository.items.value = listOf(
+            queueItem(id = "done-1", title = "Done item", description = null, status = QueueStatus.DONE)
+        )
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.showArchive()
+        viewModel.selectArchiveItem("done-1")
+        advanceUntilIdle()
+
+        assertEquals(QueMScreen.Detail("done-1"), viewModel.screen.value)
+        assertEquals("done-1", viewModel.selectedItem.value?.id)
     }
 
     private fun TestScope.collectSelectedItem(viewModel: QueueViewModel) {
