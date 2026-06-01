@@ -29,10 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -40,9 +37,12 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.quem.core.model.QueueStatus
 import com.quem.drive.DriveUrlExtractor
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -271,13 +271,13 @@ fun ItemDetailScreen(
     }
 }
 
-private const val ATTACHMENT_FORM_TEXT        = "text"
-private const val ATTACHMENT_FORM_LINK        = "link"
-private const val ATTACHMENT_FORM_DRIVE_FILE   = "drive_file"
-private const val ATTACHMENT_FORM_DRIVE_FOLDER = "drive_folder"
+internal const val ATTACHMENT_FORM_TEXT        = "text"
+internal const val ATTACHMENT_FORM_LINK        = "link"
+internal const val ATTACHMENT_FORM_DRIVE_FILE   = "drive_file"
+internal const val ATTACHMENT_FORM_DRIVE_FOLDER = "drive_folder"
 
 @Composable
-private fun AttachmentForm(
+internal fun AttachmentForm(
     type: String?,
     title: String,
     value: String,
@@ -371,7 +371,7 @@ private fun DetailListText(text: String) {
 }
 
 @Composable
-private fun DeletableRow(
+internal fun DeletableRow(
     onDelete: () -> Unit,
     onRename: ((String) -> Unit)? = null,
     currentName: String = "",
@@ -388,7 +388,7 @@ private fun DeletableRow(
         Box(modifier = Modifier.weight(1f)) { content() }
         Box(modifier = Modifier.wrapContentSize()) {
             IconButton(onClick = { menuExpanded = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Options")
+                Icon(Icons.Filled.MoreVert, contentDescription = "Options")
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 if (onRename != null) {
