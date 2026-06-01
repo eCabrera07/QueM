@@ -4,9 +4,15 @@
 
 **Goal:** Allow a user to share a single queue item with another person via Google Drive, granting them writer access to a per-item JSON file stored in the sharer's Drive.
 
-**Architecture:** Two new fields (`sharedDriveFileId`, `sharedWith`) on `QueueItem` and `QueueItemEntity` with a Room migration; a new `DriveShareGateway` interface and `GoogleDriveShareGateway` implementation wraps the Drive Permissions API; `QueueRepository.shareItem` orchestrates read-export-publish-grant-update; `ItemDetailScreen` gains a Share button and email dialog; `QueMApp` builds the Drive gateway from stored credentials and wires the callback.
+**Architecture:** Two new fields (`sharedDriveFileId`, `sharedWith`) on `QueueItem` and `QueueItemEntity` with a Room migration (v1→v2); a new `DriveShareGateway` interface and `GoogleDriveShareGateway` implementation wraps the Drive Permissions API; `QueueRepository.shareItem` orchestrates read-export-publish-grant-update; `ItemDetailScreen` gains a Share button and email dialog; `QueMApp` builds the Drive gateway from stored credentials and wires the callback.
 
-**Tech Stack:** Room v2 migration, Google Drive Files + Permissions API (`drive.file` scope), Jetpack Compose `AlertDialog`, Kotlin coroutines, existing `MetadataExporter`/`MetadataSerializer` infrastructure
+**Tech Stack:** Room v2 migration, Google Drive Files + Permissions API (`drive.file` scope), Jetpack Compose `AlertDialog`, Kotlin coroutines, existing `MetadataExporter`/`MetadataSerializer` infrastructure.
+
+**Codebase context (as of plan update 2026-06-01):**
+- `QueueItemDetailUi` already has `status: QueueStatus`, `attachments: List<AttachmentUi>`, `history: List<HistoryEntryUi>` — Tasks 4/5 add `sharedWith` and `sharedDriveFileId` to these existing fields.
+- Navigation is `QueMScreen` sealed class + `viewModel.screen: StateFlow<QueMScreen>`. `QueMApp` uses `when (screen)` — item detail lives in `is QueMScreen.Detail ->`.
+- `ItemDetailScreen` has `currentStatus`, `onStatusChange`, `onDeleteAttachment`, `onRenameAttachment`, `onDeleteHistoryEntry` — no `onDone`/`onDismiss`.
+- DB is currently at `version = 1`.
 
 ---
 
@@ -199,9 +205,7 @@ private val database: QueMDatabase = Room.databaseBuilder(
 
 Run: `./gradlew :app:test`
 
-Expected: BUILD SUCCESSFUL — all existing tests pass. (The `queueItem()` builders in test files hardcode only the old fields; they will need `sharedDriveFileId = null, sharedWith = emptyList()` added. Fix any compilation errors.)
-
-Note: if test helpers like `queueItem(...)` fail to compile because they use positional args, add the two new fields with defaults to those private helper functions.
+Expected: BUILD SUCCESSFUL — all existing tests pass. Fix any compilation errors caused by the new required fields on `QueueItem` (add `sharedDriveFileId = null, sharedWith = emptyList()` to any `QueueItem(...)` constructors in test helpers).
 
 - [ ] **Step 7: Commit**
 
@@ -222,9 +226,7 @@ git commit -m "feat: add sharedDriveFileId and sharedWith fields to QueueItem; R
 - Create: `app/src/main/java/com/quem/drive/DriveShareGateway.kt`
 - Create: `app/src/main/java/com/quem/drive/GoogleDriveShareGateway.kt`
 
-Context: `GoogleDriveGateway.kt` already contains `ensureFolder`, `findFile` private helpers and the `GoogleDriveQueries` object. `GoogleDriveShareGateway` is a separate class that reuses the same Drive service and follows the same `withContext(ioDispatcher)` pattern. The `app:property` tag `"sharedItem"` distinguishes shared item files from the main metadata file.
-
-No new tests needed for this task — the gateway is tested indirectly through the repository fake in Task 3.
+Context: `GoogleDriveGateway.kt` already contains `ensureFolder`, `findFile` private helpers. `GoogleDriveShareGateway` is a separate class that follows the same `withContext(ioDispatcher)` pattern. The `appProperty` tag `"sharedItem"` distinguishes shared item files from the main metadata file. No new tests for this task — gateway is tested indirectly via `FakeShareGateway` in Task 3.
 
 - [ ] **Step 1: Create DriveShareGateway.kt**
 
@@ -232,16 +234,10 @@ No new tests needed for this task — the gateway is tested indirectly through t
 package com.quem.drive
 
 interface DriveShareGateway {
-    /**
-     * Creates or overwrites `QueM/shared-{itemId}.json` in the user's Drive.
-     * Returns the Drive file ID of the created/updated file.
-     */
+    /** Creates or overwrites `QueM/shared-{itemId}.json`. Returns Drive file ID. */
     suspend fun publishSharedItemFile(itemId: String, content: String): String
 
-    /**
-     * Grants the given email address writer access to the Drive file.
-     * Drive sends the recipient a standard "shared with you" email notification.
-     */
+    /** Grants writer access to the Drive file; Drive emails the recipient. */
     suspend fun grantWriterAccess(fileId: String, recipientEmail: String)
 }
 ```
@@ -274,7 +270,6 @@ class GoogleDriveShareGateway(
                 APPLICATION_JSON,
                 content.toByteArray(StandardCharsets.UTF_8)
             )
-
             if (existingFile == null) {
                 val metadata = File()
                     .setName(fileName)
@@ -293,8 +288,7 @@ class GoogleDriveShareGateway(
                 .setType("user")
                 .setRole("writer")
                 .setEmailAddress(recipientEmail)
-            drive.permissions()
-                .create(fileId, permission)
+            drive.permissions().create(fileId, permission)
                 .setSendNotificationEmail(true)
                 .execute()
             Unit
@@ -305,45 +299,24 @@ class GoogleDriveShareGateway(
         if (existing != null) return existing.id
         return drive.files()
             .create(
-                File()
-                    .setName(folderName)
-                    .setMimeType(FOLDER_MIME_TYPE)
+                File().setName(folderName).setMimeType(FOLDER_MIME_TYPE)
                     .setAppProperties(mapOf(APP_PROPERTY_ROLE to APP_PROPERTY_ROOT_FOLDER))
-            )
-            .setFields("id")
-            .execute()
-            .id
+            ).setFields("id").execute().id
     }
 
-    private fun findFolder(folderName: String): File? = drive.files()
-        .list()
-        .setQ(
-            "mimeType = '$FOLDER_MIME_TYPE' and name = '$folderName' and " +
-            "appProperties has { key = '$APP_PROPERTY_ROLE' and value = '$APP_PROPERTY_ROOT_FOLDER' } " +
-            "and trashed = false"
-        )
-        .setSpaces("drive")
-        .setFields("files(id, name)")
-        .execute()
-        .files.orEmpty().firstOrNull()
+    private fun findFolder(folderName: String): File? = drive.files().list()
+        .setQ("mimeType = '$FOLDER_MIME_TYPE' and name = '$folderName' and appProperties has { key = '$APP_PROPERTY_ROLE' and value = '$APP_PROPERTY_ROOT_FOLDER' } and trashed = false")
+        .setSpaces("drive").setFields("files(id, name)").execute().files.orEmpty().firstOrNull()
 
-    private fun findFile(folderId: String, fileName: String): File? = drive.files()
-        .list()
-        .setQ(
-            "'$folderId' in parents and name = '$fileName' and " +
-            "appProperties has { key = '$APP_PROPERTY_ROLE' and value = '$APP_PROPERTY_SHARED_ITEM' } " +
-            "and trashed = false"
-        )
-        .setSpaces("drive")
-        .setFields("files(id, name)")
-        .execute()
-        .files.orEmpty().firstOrNull()
+    private fun findFile(folderId: String, fileName: String): File? = drive.files().list()
+        .setQ("'$folderId' in parents and name = '$fileName' and appProperties has { key = '$APP_PROPERTY_ROLE' and value = '$APP_PROPERTY_SHARED_ITEM' } and trashed = false")
+        .setSpaces("drive").setFields("files(id, name)").execute().files.orEmpty().firstOrNull()
 
     private companion object {
-        const val APPLICATION_JSON       = "application/json"
-        const val FOLDER_MIME_TYPE       = "application/vnd.google-apps.folder"
-        const val QUE_M_FOLDER           = "QueM"
-        const val APP_PROPERTY_ROLE      = "quemRole"
+        const val APPLICATION_JSON         = "application/json"
+        const val FOLDER_MIME_TYPE         = "application/vnd.google-apps.folder"
+        const val QUE_M_FOLDER             = "QueM"
+        const val APP_PROPERTY_ROLE        = "quemRole"
         const val APP_PROPERTY_ROOT_FOLDER = "rootFolder"
         const val APP_PROPERTY_SHARED_ITEM = "sharedItem"
     }
@@ -354,7 +327,7 @@ class GoogleDriveShareGateway(
 
 Run: `./gradlew :app:test`
 
-Expected: BUILD SUCCESSFUL — no regressions.
+Expected: BUILD SUCCESSFUL.
 
 - [ ] **Step 4: Commit**
 
@@ -374,11 +347,11 @@ git commit -m "feat: add DriveShareGateway interface and GoogleDriveShareGateway
 - Modify: `app/src/main/java/com/quem/data/repository/RoomQueueRepository.kt`
 - Modify: `app/src/test/java/com/quem/data/repository/RoomQueueRepositoryTest.kt`
 
-Context: `QueueDao.updateStatus` and `QueueDao.updateItemFields` are the existing targeted-UPDATE pattern. `RoomQueueRepository.shareItem` uses `MetadataExporter.export` + `MetadataSerializer.encode` (already imported in the file). `FakeQueueDao` in `RoomQueueRepositoryTest.kt` must implement `updateShareInfo`. The `FakeShareGateway` is defined in the test file and captures calls.
+Context: `QueueDao` already has `updateItemFields`, `deleteAttachment`, `updateAttachmentTitle`, `deleteHistoryEntry` from previous work. `RoomQueueRepository.shareItem` uses `MetadataExporter.export` + `MetadataSerializer.encode` (already imported). `FakeQueueDao` in `RoomQueueRepositoryTest.kt` must implement `updateShareInfo`. `FakeShareGateway` is defined in the test file.
 
 - [ ] **Step 1: Add updateShareInfo to QueueDao**
 
-Open `app/src/main/java/com/quem/data/local/QueueDao.kt`. Add after `updateItemFields`:
+Open `app/src/main/java/com/quem/data/local/QueueDao.kt`. Add after `deleteHistoryEntry`:
 
 ```kotlin
 @Query("""
@@ -396,7 +369,7 @@ suspend fun updateShareInfo(
 
 - [ ] **Step 2: Add shareItem to QueueRepository interface**
 
-Open `app/src/main/java/com/quem/data/repository/QueueRepository.kt`. Add after `updateItem`:
+Open `app/src/main/java/com/quem/data/repository/QueueRepository.kt`. Add after `deleteHistoryEntry`:
 
 ```kotlin
 suspend fun shareItem(
@@ -412,7 +385,7 @@ Add import: `import com.quem.drive.DriveShareGateway`
 
 Open `app/src/test/java/com/quem/data/repository/RoomQueueRepositoryTest.kt`.
 
-**3a.** Add `updateShareInfo` to `FakeQueueDao` (after `updateItemFields` override):
+**3a.** Add `updateShareInfo` to `FakeQueueDao` (after `deleteHistoryEntry` override):
 
 ```kotlin
 override suspend fun updateShareInfo(
@@ -421,16 +394,13 @@ override suspend fun updateShareInfo(
     sharedWith: List<String>
 ) {
     entities.value = entities.value.map { item ->
-        if (item.id == id) {
-            item.copy(sharedDriveFileId = sharedDriveFileId, sharedWith = sharedWith)
-        } else {
-            item
-        }
+        if (item.id == id) item.copy(sharedDriveFileId = sharedDriveFileId, sharedWith = sharedWith)
+        else item
     }
 }
 ```
 
-**3b.** Add `FakeShareGateway` at the bottom of the test file (after `FakeQueueDao`):
+**3b.** Add `FakeShareGateway` at the bottom of the test file:
 
 ```kotlin
 private class FakeShareGateway : DriveShareGateway {
@@ -454,17 +424,16 @@ private class FakeShareGateway : DriveShareGateway {
 }
 ```
 
-**3c.** Add 3 tests inside `RoomQueueRepositoryTest` (after `addTextAttachmentWritesAttachmentAddedHistoryEntry`):
+**3c.** Add 3 tests inside `RoomQueueRepositoryTest`:
 
 ```kotlin
 @Test
 fun shareItemPublishesSnapshotAndGrantsAccess() = runTest {
     val dao = FakeQueueDao()
     val ids = mutableListOf("item-1", "history-1")
-    val now = Instant.parse("2026-05-23T12:00:00Z")
     val repository = RoomQueueRepository(
         dao = dao,
-        clock = FixedClock(now),
+        clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
         idProvider = { ids.removeFirst() }
     )
     repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
@@ -482,14 +451,12 @@ fun shareItemPublishesSnapshotAndGrantsAccess() = runTest {
 fun shareItemUpdatesLocalSharedFields() = runTest {
     val dao = FakeQueueDao()
     val ids = mutableListOf("item-1", "history-1")
-    val now = Instant.parse("2026-05-23T12:00:00Z")
     val repository = RoomQueueRepository(
         dao = dao,
-        clock = FixedClock(now),
+        clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
         idProvider = { ids.removeFirst() }
     )
     repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
-
     repository.shareItem("item-1", "alice@example.com", FakeShareGateway())
 
     val updated = repository.observeItem("item-1").first()
@@ -502,10 +469,9 @@ fun shareItemUpdatesLocalSharedFields() = runTest {
 fun shareItemReturnsFalseWhenGatewayThrows() = runTest {
     val dao = FakeQueueDao()
     val ids = mutableListOf("item-1", "history-1")
-    val now = Instant.parse("2026-05-23T12:00:00Z")
     val repository = RoomQueueRepository(
         dao = dao,
-        clock = FixedClock(now),
+        clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
         idProvider = { ids.removeFirst() }
     )
     repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
@@ -514,29 +480,23 @@ fun shareItemReturnsFalseWhenGatewayThrows() = runTest {
     val result = repository.shareItem("item-1", "alice@example.com", gateway)
 
     assertFalse(result)
-    // sharedDriveFileId should remain null
-    val item = repository.observeItem("item-1").first()
-    assertNull(item?.sharedDriveFileId)
+    assertNull(repository.observeItem("item-1").first()?.sharedDriveFileId)
 }
 ```
 
-Add `import org.junit.Assert.assertFalse` and `import org.junit.Assert.assertTrue` and `import com.quem.drive.DriveShareGateway` if not already present.
+Add `import com.quem.drive.DriveShareGateway` if not already present.
 
 - [ ] **Step 4: Run tests to verify they fail**
 
 Run: `./gradlew :app:test --tests "com.quem.data.repository.RoomQueueRepositoryTest"`
 
-Expected: FAILED — `shareItem` not yet implemented in `RoomQueueRepository`.
+Expected: FAILED — `shareItem` not yet implemented.
 
 - [ ] **Step 5: Implement shareItem in RoomQueueRepository**
 
-Open `app/src/main/java/com/quem/data/repository/RoomQueueRepository.kt`. Add imports:
+Add import: `import com.quem.drive.DriveShareGateway`
 
-```kotlin
-import com.quem.drive.DriveShareGateway
-```
-
-Add method after `updateItem`:
+Add method after `deleteHistoryEntry`:
 
 ```kotlin
 override suspend fun shareItem(
@@ -544,7 +504,7 @@ override suspend fun shareItem(
     recipientEmail: String,
     shareGateway: DriveShareGateway
 ): Boolean = runCatching {
-    val item = dao.observeItem(itemId).first()?.toDomain() ?: return false
+    val item        = dao.observeItem(itemId).first()?.toDomain() ?: return false
     val attachments = dao.observeAttachments(itemId).first().map { it.toDomain() }
     val history     = dao.observeHistory(itemId).first().map { it.toDomain() }
 
@@ -558,12 +518,7 @@ override suspend fun shareItem(
 
     val fileId = shareGateway.publishSharedItemFile(itemId, content)
     shareGateway.grantWriterAccess(fileId, recipientEmail)
-
-    dao.updateShareInfo(
-        id                = itemId,
-        sharedDriveFileId = fileId,
-        sharedWith        = listOf(recipientEmail)
-    )
+    dao.updateShareInfo(id = itemId, sharedDriveFileId = fileId, sharedWith = listOf(recipientEmail))
     true
 }.getOrElse { false }
 ```
@@ -572,13 +527,13 @@ override suspend fun shareItem(
 
 Run: `./gradlew :app:test --tests "com.quem.data.repository.RoomQueueRepositoryTest"`
 
-Expected: BUILD SUCCESSFUL, all tests pass.
+Expected: BUILD SUCCESSFUL.
 
 - [ ] **Step 7: Run full unit test suite**
 
 Run: `./gradlew :app:test`
 
-Expected: BUILD SUCCESSFUL, all tests pass.
+Expected: BUILD SUCCESSFUL.
 
 - [ ] **Step 8: Commit**
 
@@ -598,13 +553,13 @@ git commit -m "feat: add shareItem to QueueRepository and RoomQueueRepository"
 - Modify: `app/src/main/java/com/quem/ui/QueueViewModel.kt`
 - Modify: `app/src/test/java/com/quem/ui/QueueViewModelTest.kt`
 
-Context: `QueueItemDetailUi` currently has 9 fields. Adding `sharedWith` and `sharedDriveFileId` follows the same pattern as `priorityLabel`. `shareError` is a `MutableStateFlow<String?>` — not in `SavedStateHandle` since it's transient UI state that should reset on navigation. `FakeQueueRepository` in `QueueViewModelTest.kt` needs `shareItem` added (always returns `true`, tracks last call).
+Context: `QueueItemDetailUi` currently has 10 fields (`id`, `title`, `description`, `priorityLabel`, `dueDateLabel`, `dueDateIso`, `attachments: List<AttachmentUi>`, `history: List<HistoryEntryUi>`, `syncIndicator`, `status`). Adding `sharedWith` and `sharedDriveFileId` follows the same pattern. `shareError` is a `MutableStateFlow<String?>` (already imported) — transient UI state, not in `SavedStateHandle`. `isShowingShareDialog` goes in `SavedStateHandle` so it survives config changes. The companion object already has `KEY_SCREEN_ROUTE`, `KEY_IS_CREATING_ITEM`, etc — add `KEY_IS_SHOWING_SHARE_DIALOG` there. `FakeQueueRepository` in `QueueViewModelTest.kt` must add `shareItem` (always returns `true`).
 
 - [ ] **Step 1: Write the failing ViewModel unit tests**
 
 Open `app/src/test/java/com/quem/ui/QueueViewModelTest.kt`.
 
-**1a.** Add `shareItem` to `FakeQueueRepository` (after `updateItem`):
+**1a.** Add `shareItem` to `FakeQueueRepository` (after `deleteHistoryEntry`):
 
 ```kotlin
 var lastSharedItemId: String? = null
@@ -621,7 +576,7 @@ override suspend fun shareItem(
 }
 ```
 
-Add `import com.quem.drive.DriveShareGateway` to the test file imports.
+Add `import com.quem.drive.DriveShareGateway` to test file imports.
 
 **1b.** Add this test inside `QueueViewModelTest`:
 
@@ -650,7 +605,7 @@ fun selectedItemIncludesSharedWithWhenItemIsShared() = runTest {
 }
 ```
 
-Also update the `queueItem()` helper at the bottom of `QueueViewModelTest.kt` to add the two new parameters:
+**1c.** Update the `queueItem()` helper at the bottom of `QueueViewModelTest.kt` to add the two new parameters:
 
 ```kotlin
 private fun queueItem(
@@ -661,8 +616,8 @@ private fun queueItem(
     priority: Priority? = null,
     dueDate: LocalDate? = null,
     syncState: SyncState = SyncState.PENDING_SYNC,
-    sharedDriveFileId: String? = null,      // new
-    sharedWith: List<String> = emptyList()  // new
+    sharedDriveFileId: String? = null,
+    sharedWith: List<String> = emptyList()
 ) = QueueItem(
     id                = id,
     driveId           = null,
@@ -690,9 +645,7 @@ Expected: FAILED — `sharedWith`, `sharedDriveFileId` not yet on `QueueItemDeta
 
 - [ ] **Step 3: Update QueueViewModel.kt**
 
-Open `app/src/main/java/com/quem/ui/QueueViewModel.kt`.
-
-**3a.** Add two fields to `QueueItemDetailUi`:
+**3a.** Add two fields to `QueueItemDetailUi` (after `status`):
 
 ```kotlin
 data class QueueItemDetailUi(
@@ -702,18 +655,19 @@ data class QueueItemDetailUi(
     val priorityLabel: String?,
     val dueDateLabel: String?,
     val dueDateIso: String?,
-    val attachments: List<String>,
-    val history: List<String>,
+    val attachments: List<AttachmentUi>,
+    val history: List<HistoryEntryUi>,
     val syncIndicator: SyncIndicator?,
+    val status: QueueStatus,
     val sharedDriveFileId: String?,     // new
     val sharedWith: List<String>        // new
 )
 ```
 
-**3b.** Update `toDetailUi` private function to map the new fields:
+**3b.** Update `toDetailUi` to map the new fields (add to the existing function):
 
 ```kotlin
-private fun QueueItem.toDetailUi(attachments: List<String>, history: List<String>) = QueueItemDetailUi(
+private fun QueueItem.toDetailUi(attachments: List<AttachmentUi>, history: List<HistoryEntryUi>) = QueueItemDetailUi(
     id                = id,
     title             = title,
     description       = description,
@@ -723,16 +677,15 @@ private fun QueueItem.toDetailUi(attachments: List<String>, history: List<String
     attachments       = attachments,
     history           = history,
     syncIndicator     = syncState.toIndicator(),
+    status            = status,
     sharedDriveFileId = sharedDriveFileId,
     sharedWith        = sharedWith
 )
 ```
 
-**3c.** Add companion object key and new StateFlows + actions (after `closeArchive` actions):
+**3c.** Add share dialog state and actions. Add after the `navigateBack()` function:
 
 ```kotlin
-private const val KEY_IS_SHOWING_SHARE_DIALOG = "isShowingShareDialog"
-
 val isShowingShareDialog: StateFlow<Boolean> =
     savedStateHandle.getStateFlow(KEY_IS_SHOWING_SHARE_DIALOG, false)
 
@@ -767,21 +720,25 @@ fun shareItem(recipientEmail: String, shareGateway: DriveShareGateway) {
 }
 ```
 
-Add `KEY_IS_SHOWING_SHARE_DIALOG` to the companion object constants block (after `KEY_IS_EDITING_ITEM`).
+**3d.** Add `KEY_IS_SHOWING_SHARE_DIALOG` to the companion object constants (after `KEY_IS_EDITING_ITEM`):
 
-Add imports: `import com.quem.drive.DriveShareGateway` and `import kotlinx.coroutines.flow.MutableStateFlow`.
+```kotlin
+private const val KEY_IS_SHOWING_SHARE_DIALOG = "isShowingShareDialog"
+```
+
+Add imports: `import com.quem.drive.DriveShareGateway` (if not already present).
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `./gradlew :app:test --tests "com.quem.ui.QueueViewModelTest"`
 
-Expected: BUILD SUCCESSFUL, all tests pass including the new one.
+Expected: BUILD SUCCESSFUL.
 
 - [ ] **Step 5: Run full unit test suite**
 
 Run: `./gradlew :app:test`
 
-Expected: BUILD SUCCESSFUL, all tests pass.
+Expected: BUILD SUCCESSFUL.
 
 - [ ] **Step 6: Commit**
 
@@ -800,7 +757,7 @@ git commit -m "feat: add share dialog state and shareItem action to QueueViewMod
 - Modify: `app/src/main/java/com/quem/app/QueMApp.kt`
 - Modify: `app/src/androidTest/java/com/quem/ui/ItemDetailScreenTest.kt`
 
-Context: The current top row (lines ~89-95) is a `Row(SpaceBetween)` with Back and Edit. Add Share as a third `TextButton`. The `AlertDialog` holds local email state (`rememberSaveable`). `QueMApp.kt` builds the `GoogleDriveShareGateway` from stored credentials exactly as `SyncWorker.doWork()` does. `deps.driveAccountPreferences` is `internal` — accessible from `QueMApp.kt` which is in `com.quem.app`, same module.
+Context: The current top row is `Row(SpaceBetween)` with `TextButton("Back")` on the left and `TextButton("Edit")` on the right. Add `TextButton("Share")` next to Edit. `QueMApp` now uses `when (screen)` with `QueMScreen` sealed class — the item detail is in the `is QueMScreen.Detail ->` branch. `driveConnectionState` is already collected in `QueMApp`; the account email comes from `(driveConnectionState as DriveConnectionState.Connected).account.email` (user is always signed in at this point due to the sign-in gate). No `onDone`/`onDismiss` in `ItemDetailScreen` — those are replaced by `onStatusChange`.
 
 - [ ] **Step 1: Write the failing instrumented tests**
 
@@ -815,9 +772,7 @@ fun shareButtonDisplayed() {
             description = null,
             dueDateLabel = null,
             attachments = emptyList(),
-            history = emptyList(),
-            onDismiss = {},
-            onDone = {},
+            history = emptyList<HistoryEntryUi>(),
             onBack = {}
         )
     }
@@ -834,9 +789,7 @@ fun shareButtonInvokesOnShareCallback() {
             description = null,
             dueDateLabel = null,
             attachments = emptyList(),
-            history = emptyList(),
-            onDismiss = {},
-            onDone = {},
+            history = emptyList<HistoryEntryUi>(),
             onBack = {},
             onShare = { shared = true }
         )
@@ -855,10 +808,8 @@ fun sharedWithLabelDisplayedWhenItemIsShared() {
             description = null,
             dueDateLabel = null,
             attachments = emptyList(),
-            history = emptyList(),
+            history = emptyList<HistoryEntryUi>(),
             sharedWith = listOf("alice@example.com"),
-            onDismiss = {},
-            onDone = {},
             onBack = {}
         )
     }
@@ -875,7 +826,7 @@ Expected: FAILED — `onShare` and `sharedWith` params don't exist yet.
 
 - [ ] **Step 3: Update ItemDetailScreen.kt**
 
-**3a.** Add new parameters to the function signature (after `syncIndicator`, before `onDismiss`):
+**3a.** Add new parameters to the function signature (after `onDeleteHistoryEntry`):
 
 ```kotlin
 @Composable
@@ -883,25 +834,27 @@ fun ItemDetailScreen(
     title: String,
     description: String?,
     dueDateLabel: String?,
-    attachments: List<String>,
-    history: List<String>,
+    attachments: List<AttachmentUi>,
+    history: List<HistoryEntryUi>,
     priorityLabel: String? = null,
     syncIndicator: SyncIndicator? = null,
-    sharedWith: List<String> = emptyList(),   // new
-    isShowingShareDialog: Boolean = false,    // new
-    shareError: String? = null,               // new
-    onDismiss: () -> Unit,
-    onDone: () -> Unit,
+    currentStatus: QueueStatus = QueueStatus.QUEUED,
+    onStatusChange: (QueueStatus) -> Unit = {},
     onBack: () -> Unit,
     onEdit: () -> Unit = {},
-    onShare: () -> Unit = {},                 // new — shows share dialog
-    onShareConfirm: (email: String) -> Unit = {},  // new — called with entered email
-    onShareDialogDismiss: () -> Unit = {},    // new
-    ...
+    onDeleteAttachment: (attachmentId: String) -> Unit = {},
+    onRenameAttachment: (attachmentId: String, newTitle: String) -> Unit = { _, _ -> },
+    onDeleteHistoryEntry: (historyEntryId: String) -> Unit = {},
+    sharedWith: List<String> = emptyList(),          // new
+    isShowingShareDialog: Boolean = false,           // new
+    shareError: String? = null,                      // new
+    onShare: () -> Unit = {},                        // new
+    onShareConfirm: (email: String) -> Unit = {},   // new
+    onShareDialogDismiss: () -> Unit = {}            // new
 )
 ```
 
-**3b.** Replace the top `Row` (Back/Edit) with a three-button row:
+**3b.** Replace the top `Row` (Back / Edit) with a three-button row:
 
 ```kotlin
 item {
@@ -918,7 +871,7 @@ item {
 }
 ```
 
-**3c.** In the header Column, after the `syncIndicator` Row and before the action buttons, add the "Shared with" indicator:
+**3c.** After the `syncIndicator` block and before `StatusActionRow`, add the "Shared with" indicator:
 
 ```kotlin
 if (sharedWith.isNotEmpty()) {
@@ -931,7 +884,7 @@ if (sharedWith.isNotEmpty()) {
 }
 ```
 
-**3d.** Add the share `AlertDialog` — place it at the end of the composable body (outside the `LazyColumn`, as a sibling):
+**3d.** After the closing brace of the `LazyColumn`, add the share `AlertDialog` as a sibling:
 
 ```kotlin
 if (isShowingShareDialog) {
@@ -970,82 +923,65 @@ if (isShowingShareDialog) {
 }
 ```
 
-Add imports: `import androidx.compose.material3.AlertDialog`, `import androidx.compose.material3.Button`.
+Add imports: `import androidx.compose.material3.AlertDialog`, `import androidx.compose.material3.Button`, `import androidx.compose.runtime.saveable.rememberSaveable`.
 
 - [ ] **Step 4: Update QueMApp.kt**
 
-**4a.** Add state collection (after `archiveResults`):
+**4a.** Add state collection after `archiveResults`:
 
 ```kotlin
 val isShowingShareDialog by viewModel.isShowingShareDialog.collectAsStateWithLifecycle()
-val shareError by viewModel.shareError.collectAsStateWithLifecycle()
+val shareError           by viewModel.shareError.collectAsStateWithLifecycle()
 ```
 
-**4b.** Pass new params to `ItemDetailScreen`:
+**4b.** In the `is QueMScreen.Detail ->` branch, add share params to `ItemDetailScreen`:
 
 ```kotlin
-ItemDetailScreen(
-    title                = item.title,
-    description          = item.description,
-    dueDateLabel         = item.dueDateLabel,
-    priorityLabel        = item.priorityLabel,
-    attachments          = item.attachments,
-    history              = item.history,
-    syncIndicator        = item.syncIndicator,
-    sharedWith           = item.sharedWith,
-    isShowingShareDialog = isShowingShareDialog,
-    shareError           = shareError,
-    onShare              = viewModel::showShareDialog,
-    onShareDialogDismiss = viewModel::closeShareDialog,
-    onShareConfirm       = { email ->
-        val deps = (context.applicationContext as QueMApplication).dependencies
-        val accountEmail = deps.driveAccountPreferences.load()
-        if (accountEmail == null) {
-            viewModel.setShareError("Sign in to Google Drive to share items")
-        } else {
-            val credential = GoogleAccountCredential
-                .usingOAuth2(context, listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE))
-                .setSelectedAccountName(accountEmail)
-            val drive = Drive.Builder(
-                NetHttpTransport(),
-                GsonFactory.getDefaultInstance(),
-                credential
-            ).setApplicationName("QueM").build()
-            viewModel.shareItem(email, GoogleDriveShareGateway(drive))
-        }
-    },
-    onEdit        = viewModel::startEdit,
-    onAddTextAttachment = viewModel::addTextAttachment,
-    onAddLinkAttachment = viewModel::addLinkAttachment,
-    driveActionsEnabled = driveConnected,
-    onAttachDriveFile = {
-        drivePickerCoordinator.pickFile { selection ->
-            if (selection != null) {
-                viewModel.addDriveFileAttachment(
-                    title = selection.name,
-                    driveFileId = selection.id,
-                    mimeType = selection.mimeType
-                )
+is QueMScreen.Detail -> {
+    val item = selectedItem ?: return
+    ItemDetailScreen(
+        title                = item.title,
+        description          = item.description,
+        dueDateLabel         = item.dueDateLabel,
+        priorityLabel        = item.priorityLabel,
+        attachments          = item.attachments,
+        history              = item.history,
+        syncIndicator        = item.syncIndicator,
+        currentStatus        = item.status,
+        onStatusChange       = viewModel::changeStatusOfSelectedItem,
+        onEdit               = viewModel::startEdit,
+        onDeleteAttachment   = viewModel::deleteAttachment,
+        onRenameAttachment   = viewModel::updateAttachmentTitle,
+        onDeleteHistoryEntry = viewModel::deleteHistoryEntry,
+        sharedWith           = item.sharedWith,
+        isShowingShareDialog = isShowingShareDialog,
+        shareError           = shareError,
+        onShare              = viewModel::showShareDialog,
+        onShareDialogDismiss = viewModel::closeShareDialog,
+        onShareConfirm       = { email ->
+            val connectedState = driveConnectionState as? DriveConnectionState.Connected
+            val accountEmail = connectedState?.account?.email
+            if (accountEmail == null) {
+                viewModel.setShareError("Sign in to Google Drive to share items")
+            } else {
+                val credential = GoogleAccountCredential
+                    .usingOAuth2(context, listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE))
+                    .setSelectedAccountName(accountEmail)
+                val drive = Drive.Builder(
+                    NetHttpTransport(),
+                    GsonFactory.getDefaultInstance(),
+                    credential
+                ).setApplicationName("QueM").build()
+                viewModel.shareItem(email, GoogleDriveShareGateway(drive))
             }
-        }
-    },
-    onAttachDriveFolder = {
-        drivePickerCoordinator.pickFolder { selection ->
-            if (selection != null) {
-                viewModel.addDriveFolderAttachment(
-                    title = selection.name,
-                    driveFolderId = selection.id
-                )
-            }
-        }
-    },
-    onDismiss = viewModel::dismissSelectedItem,
-    onDone    = viewModel::doneSelectedItem,
-    onBack    = viewModel::backToList
-)
+        },
+        onBack               = viewModel::backToList
+    )
+}
 ```
 
 Add imports to `QueMApp.kt`:
+
 ```kotlin
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.javanet.NetHttpTransport
@@ -1065,7 +1001,7 @@ Expected: BUILD SUCCESSFUL, all tests pass including 3 new ones.
 
 Run: `./gradlew :app:test`
 
-Expected: BUILD SUCCESSFUL, all tests pass.
+Expected: BUILD SUCCESSFUL.
 
 - [ ] **Step 7: Commit**
 
