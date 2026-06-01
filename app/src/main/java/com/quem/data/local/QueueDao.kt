@@ -104,6 +104,18 @@ interface QueueDao {
     @Query("DELETE FROM history_entries WHERE id = :id")
     suspend fun deleteHistoryEntry(id: String)
 
+    @Query("""
+        UPDATE queue_items
+        SET sharedDriveFileId = :sharedDriveFileId,
+            sharedWith        = :sharedWith
+        WHERE id = :id
+    """)
+    suspend fun updateShareInfo(
+        id: String,
+        sharedDriveFileId: String,
+        sharedWith: List<String>
+    )
+
     @Query("SELECT * FROM attachments WHERE queueItemId = :queueItemId ORDER BY createdAt DESC, id ASC")
     fun observeAttachments(queueItemId: String): Flow<List<AttachmentEntity>>
 

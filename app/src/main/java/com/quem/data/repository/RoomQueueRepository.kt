@@ -10,6 +10,11 @@ import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
 import android.util.Log
 import com.quem.core.time.Clock
+import com.quem.data.sync.MetadataExporter
+import com.quem.data.sync.MetadataSerializer
+import com.quem.data.sync.toExportable
+import com.quem.data.sync.toMetadata
+import com.quem.drive.DriveShareGateway
 import com.quem.data.local.HistoryEntryEntity
 import com.quem.data.local.QueueDao
 import com.quem.data.local.toDomain
@@ -250,6 +255,29 @@ class RoomQueueRepository(
     override suspend fun deleteHistoryEntry(historyEntryId: String) {
         dao.deleteHistoryEntry(historyEntryId)
     }
+
+    override suspend fun shareItem(
+        itemId: String,
+        recipientEmail: String,
+        shareGateway: DriveShareGateway
+    ): Boolean = runCatching {
+        val item        = dao.observeItem(itemId).first()?.toDomain() ?: return false
+        val attachments = dao.observeAttachments(itemId).first().map { it.toDomain() }
+        val history     = dao.observeHistory(itemId).first().map { it.toDomain() }
+
+        val snapshot = MetadataExporter.export(
+            exportedAt  = clock.now().toString(),
+            items       = listOf(item.toExportable()),
+            attachments = attachments.map { it.toMetadata() },
+            history     = history.map { it.toMetadata() }
+        )
+        val content = MetadataSerializer.encode(snapshot)
+
+        val fileId = shareGateway.publishSharedItemFile(itemId, content)
+        shareGateway.grantWriterAccess(fileId, recipientEmail)
+        dao.updateShareInfo(id = itemId, sharedDriveFileId = fileId, sharedWith = listOf(recipientEmail))
+        true
+    }.getOrElse { false }
 
     private fun logHistoryWriteFailure(error: Throwable) {
         runCatching {

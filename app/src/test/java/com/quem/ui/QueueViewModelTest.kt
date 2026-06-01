@@ -12,6 +12,7 @@ import com.quem.core.model.SyncState
 import com.quem.core.time.FixedClock
 import com.quem.data.repository.QueueRepository
 import com.quem.drive.DisconnectedDriveConnectionRepository
+import com.quem.drive.DriveShareGateway
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -893,6 +894,12 @@ private class FakeQueueRepository : QueueRepository {
     override suspend fun deleteHistoryEntry(historyEntryId: String) {
         historyEntries.value = historyEntries.value.filterNot { it.id == historyEntryId }
     }
+
+    override suspend fun shareItem(
+        itemId: String,
+        recipientEmail: String,
+        shareGateway: DriveShareGateway
+    ): Boolean = throw UnsupportedOperationException()
 
     fun emitHistory(vararg entries: HistoryEntry) {
         historyEntries.value = entries.toList()

@@ -9,6 +9,7 @@ import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
 import com.quem.core.model.SyncState
 import com.quem.core.time.FixedClock
+import com.quem.drive.DriveShareGateway
 import com.quem.data.local.AttachmentEntity
 import com.quem.data.local.HistoryEntryEntity
 import com.quem.data.local.QueueDao
@@ -20,7 +21,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 import java.time.LocalDate
@@ -728,6 +731,62 @@ class RoomQueueRepositoryTest {
 
         assertEquals("New", result?.title)
     }
+
+    @Test
+    fun shareItemPublishesSnapshotAndGrantsAccess() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+        val gateway = FakeShareGateway()
+
+        val result = repository.shareItem("item-1", "alice@example.com", gateway)
+
+        assertTrue(result)
+        assertEquals("item-1", gateway.publishedItemId)
+        assertEquals("fake-file-id", gateway.grantedFileId)
+        assertEquals("alice@example.com", gateway.grantedEmail)
+    }
+
+    @Test
+    fun shareItemUpdatesLocalSharedFields() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+        repository.shareItem("item-1", "alice@example.com", FakeShareGateway())
+
+        val updated = repository.observeItem("item-1").first()
+        requireNotNull(updated)
+        assertEquals("fake-file-id", updated.sharedDriveFileId)
+        assertEquals(listOf("alice@example.com"), updated.sharedWith)
+    }
+
+    @Test
+    fun shareItemReturnsFalseWhenGatewayThrows() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1")
+        val repository = RoomQueueRepository(
+            dao = dao,
+            clock = FixedClock(Instant.parse("2026-05-23T12:00:00Z")),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
+        val gateway = FakeShareGateway().apply { shouldThrow = RuntimeException("Drive error") }
+
+        val result = repository.shareItem("item-1", "alice@example.com", gateway)
+
+        assertFalse(result)
+        assertNull(repository.observeItem("item-1").first()?.sharedDriveFileId)
+    }
 }
 
 private fun queueItemEntity(
@@ -886,6 +945,17 @@ private open class FakeQueueDao : QueueDao {
         historyEntities.value = historyEntities.value.filterNot { it.id == id }
     }
 
+    override suspend fun updateShareInfo(
+        id: String,
+        sharedDriveFileId: String,
+        sharedWith: List<String>
+    ) {
+        entities.value = entities.value.map { item ->
+            if (item.id == id) item.copy(sharedDriveFileId = sharedDriveFileId, sharedWith = sharedWith)
+            else item
+        }
+    }
+
     override fun observeAttachments(queueItemId: String): Flow<List<AttachmentEntity>> =
         attachmentEntities.map { attachments ->
             attachments
@@ -919,4 +989,24 @@ private fun likeContains(value: String, query: String): Boolean {
         append(".*")
     }
     return Regex(pattern, RegexOption.IGNORE_CASE).matches(value)
+}
+
+private class FakeShareGateway : DriveShareGateway {
+    var publishedItemId: String? = null
+    var publishedContent: String? = null
+    var grantedFileId: String? = null
+    var grantedEmail: String? = null
+    var shouldThrow: Exception? = null
+
+    override suspend fun publishSharedItemFile(itemId: String, content: String): String {
+        shouldThrow?.let { throw it }
+        publishedItemId = itemId
+        publishedContent = content
+        return "fake-file-id"
+    }
+
+    override suspend fun grantWriterAccess(fileId: String, recipientEmail: String) {
+        grantedFileId = fileId
+        grantedEmail = recipientEmail
+    }
 }

@@ -5,6 +5,7 @@ import com.quem.core.model.HistoryEntry
 import com.quem.core.model.Priority
 import com.quem.core.model.QueueItem
 import com.quem.core.model.QueueStatus
+import com.quem.drive.DriveShareGateway
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
@@ -53,4 +54,10 @@ interface QueueRepository {
     suspend fun updateAttachmentTitle(attachmentId: String, title: String)
 
     suspend fun deleteHistoryEntry(historyEntryId: String)
+
+    suspend fun shareItem(
+        itemId: String,
+        recipientEmail: String,
+        shareGateway: DriveShareGateway
+    ): Boolean
 }
