@@ -39,10 +39,10 @@ private val QueMColorScheme = lightColorScheme(
     tertiaryContainer    = TealLight,
     onTertiaryContainer  = TealDark,
 
-    // Background — white; surfaces/cards — light teal
+    // Background and surfaces — white
     background           = White,
     onBackground         = OnSurface,
-    surface              = TealLight,
+    surface              = White,
     onSurface            = OnSurface,
     surfaceVariant       = TealLight,
     onSurfaceVariant     = Color(0xFF3F484A),
