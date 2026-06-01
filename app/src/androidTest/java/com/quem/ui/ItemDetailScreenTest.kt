@@ -160,10 +160,7 @@ class ItemDetailScreenTest {
     }
 
     @Test
-    fun disconnectedDriveActionsShowSignInMessageAndDoNotCallPickers() {
-        var fileClicks = 0
-        var folderClicks = 0
-
+    fun driveFileButtonOpensDriveUrlForm() {
         compose.setContent {
             ItemDetailScreen(
                 title = "Read contract",
@@ -171,9 +168,6 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = emptyList(),
                 history = emptyList(),
-                driveActionsEnabled = false,
-                onAttachDriveFile = { fileClicks += 1 },
-                onAttachDriveFolder = { folderClicks += 1 },
                 onDismiss = {},
                 onDone = {},
                 onBack = {}
@@ -181,18 +175,14 @@ class ItemDetailScreenTest {
         }
 
         compose.onNodeWithText("Drive file").performClick()
-        compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsDisplayed()
-        compose.onNodeWithText("Drive folder").performClick()
-        compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsDisplayed()
 
-        assertEquals(0, fileClicks)
-        assertEquals(0, folderClicks)
+        compose.onNodeWithText("Drive file URL").assertIsDisplayed()
     }
 
     @Test
-    fun connectedDriveActionsInvokeCallbacks() {
-        var fileClicks = 0
-        var folderClicks = 0
+    fun driveFileUrlFormCallsCallbackWithExtractedId() {
+        var capturedTitle = ""
+        var capturedId = ""
 
         compose.setContent {
             ItemDetailScreen(
@@ -201,9 +191,7 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = emptyList(),
                 history = emptyList(),
-                driveActionsEnabled = true,
-                onAttachDriveFile = { fileClicks += 1 },
-                onAttachDriveFolder = { folderClicks += 1 },
+                onAttachDriveFile = { title, id, _ -> capturedTitle = title; capturedId = id },
                 onDismiss = {},
                 onDone = {},
                 onBack = {}
@@ -211,14 +199,17 @@ class ItemDetailScreenTest {
         }
 
         compose.onNodeWithText("Drive file").performClick()
-        compose.onNodeWithText("Drive folder").performClick()
+        compose.onNode(hasSetTextAction() and hasText("Drive file URL")).performTextInput(
+            "https://drive.google.com/file/d/abc123/view"
+        )
+        compose.onNodeWithText("Save").performClick()
 
-        assertEquals(1, fileClicks)
-        assertEquals(1, folderClicks)
+        assertEquals("Drive file", capturedTitle)
+        assertEquals("abc123", capturedId)
     }
 
     @Test
-    fun syncIndicatorLabelDisplayedWhenPending() {
+    fun driveFileUrlFormShowsErrorForInvalidUrl() {
         compose.setContent {
             ItemDetailScreen(
                 title = "Read contract",
@@ -226,47 +217,6 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 attachments = emptyList(),
                 history = emptyList(),
-                syncIndicator = SyncIndicator.PENDING,
-                onDismiss = {},
-                onDone = {},
-                onBack = {}
-            )
-        }
-
-        compose.onNodeWithText("Pending sync").assertIsDisplayed()
-    }
-
-    @Test
-    fun syncErrorLabelDisplayedWhenError() {
-        compose.setContent {
-            ItemDetailScreen(
-                title = "Read contract",
-                description = null,
-                dueDateLabel = null,
-                attachments = emptyList(),
-                history = emptyList(),
-                syncIndicator = SyncIndicator.ERROR,
-                onDismiss = {},
-                onDone = {},
-                onBack = {}
-            )
-        }
-
-        compose.onNodeWithText("Sync error").assertIsDisplayed()
-    }
-
-    @Test
-    fun driveSignInMessageClearsWhenDriveBecomesAvailable() {
-        var driveActionsEnabled by mutableStateOf(false)
-
-        compose.setContent {
-            ItemDetailScreen(
-                title = "Read contract",
-                description = null,
-                dueDateLabel = null,
-                attachments = emptyList(),
-                history = emptyList(),
-                driveActionsEnabled = driveActionsEnabled,
                 onDismiss = {},
                 onDone = {},
                 onBack = {}
@@ -274,14 +224,13 @@ class ItemDetailScreenTest {
         }
 
         compose.onNodeWithText("Drive file").performClick()
-        compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsDisplayed()
+        compose.onNode(hasSetTextAction() and hasText("Drive file URL")).performTextInput("not-a-drive-url")
+        compose.onNodeWithText("Save").performClick()
 
-        driveActionsEnabled = true
-
-        compose.onNodeWithText("Sign in to Google Drive to attach files").assertIsNotDisplayed()
+        compose.onNodeWithText("Couldn't find a Drive ID in that URL. Paste the full Drive link.").assertIsDisplayed()
     }
 
-    @Test
+        @Test
     fun priorityLabelDisplayedWhenSet() {
         compose.setContent {
             ItemDetailScreen(

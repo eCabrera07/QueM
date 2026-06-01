@@ -105,7 +105,6 @@ fun QueMApp(
         )
     } else {
         val item = selectedItem ?: return
-        val driveConnected = driveConnectionState is DriveConnectionState.Connected
         ItemDetailScreen(
             title         = item.title,
             description   = item.description,
@@ -117,27 +116,18 @@ fun QueMApp(
             onEdit        = viewModel::startEdit,
             onAddTextAttachment = viewModel::addTextAttachment,
             onAddLinkAttachment = viewModel::addLinkAttachment,
-            driveActionsEnabled = driveConnected,
-            onAttachDriveFile = {
-                drivePickerCoordinator.pickFile { selection ->
-                    if (selection != null) {
-                        viewModel.addDriveFileAttachment(
-                            title = selection.name,
-                            driveFileId = selection.id,
-                            mimeType = selection.mimeType
-                        )
-                    }
-                }
+            onAttachDriveFile = { title, driveFileId, mimeType ->
+                viewModel.addDriveFileAttachment(
+                    title = title,
+                    driveFileId = driveFileId,
+                    mimeType = mimeType
+                )
             },
-            onAttachDriveFolder = {
-                drivePickerCoordinator.pickFolder { selection ->
-                    if (selection != null) {
-                        viewModel.addDriveFolderAttachment(
-                            title = selection.name,
-                            driveFolderId = selection.id
-                        )
-                    }
-                }
+            onAttachDriveFolder = { title, driveFolderId ->
+                viewModel.addDriveFolderAttachment(
+                    title = title,
+                    driveFolderId = driveFolderId
+                )
             },
             onDismiss = viewModel::dismissSelectedItem,
             onDone    = viewModel::doneSelectedItem,

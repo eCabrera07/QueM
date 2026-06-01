@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.clickable
+import com.quem.drive.DriveUrlExtractor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -54,31 +55,24 @@ fun ItemDetailScreen(
     onEdit: () -> Unit = {},
     onAddTextAttachment: (title: String, text: String) -> Unit = { _, _ -> },
     onAddLinkAttachment: (title: String, url: String) -> Unit = { _, _ -> },
-    driveActionsEnabled: Boolean = false,
-    driveUnavailableMessage: String = "Sign in to Google Drive to attach files",
-    onAttachDriveFile: () -> Unit = {},
-    onAttachDriveFolder: () -> Unit = {}
+    onAttachDriveFile: (title: String, driveFileId: String, mimeType: String?) -> Unit = { _, _, _ -> },
+    onAttachDriveFolder: (title: String, driveFolderId: String) -> Unit = { _, _ -> }
 ) {
     val uriHandler = LocalUriHandler.current
     var attachmentFormType by rememberSaveable { mutableStateOf<String?>(null) }
     var attachmentTitle by rememberSaveable { mutableStateOf("") }
     var attachmentValue by rememberSaveable { mutableStateOf("") }
-    var driveMessage by rememberSaveable { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(driveActionsEnabled) {
-        if (driveActionsEnabled) {
-            driveMessage = null
-        }
-    }
+    var driveUrlError by rememberSaveable { mutableStateOf(false) }
 
     fun openAttachmentForm(type: String) {
-        driveMessage = null
+        driveUrlError = false
         attachmentTitle = ""
         attachmentValue = ""
         attachmentFormType = type
     }
 
     fun closeAttachmentForm() {
+        driveUrlError = false
         attachmentTitle = ""
         attachmentValue = ""
         attachmentFormType = null
@@ -178,22 +172,8 @@ fun ItemDetailScreen(
                 AttachmentEditor(
                     onAddText = { openAttachmentForm(ATTACHMENT_FORM_TEXT) },
                     onAddLink = { openAttachmentForm(ATTACHMENT_FORM_LINK) },
-                    onAttachDriveFile = {
-                        if (driveActionsEnabled) {
-                            driveMessage = null
-                            onAttachDriveFile()
-                        } else {
-                            driveMessage = driveUnavailableMessage
-                        }
-                    },
-                    onAttachDriveFolder = {
-                        if (driveActionsEnabled) {
-                            driveMessage = null
-                            onAttachDriveFolder()
-                        } else {
-                            driveMessage = driveUnavailableMessage
-                        }
-                    },
+                    onAttachDriveFile = { openAttachmentForm(ATTACHMENT_FORM_DRIVE_FILE) },
+                    onAttachDriveFolder = { openAttachmentForm(ATTACHMENT_FORM_DRIVE_FOLDER) },
                     showDriveActions = true
                 )
             } else {
@@ -201,24 +181,43 @@ fun ItemDetailScreen(
                     type = attachmentFormType,
                     title = attachmentTitle,
                     value = attachmentValue,
+                    showError = driveUrlError,
                     onTitleChange = { attachmentTitle = it },
-                    onValueChange = { attachmentValue = it },
+                    onValueChange = { driveUrlError = false; attachmentValue = it },
                     onSave = {
                         val trimmedTitle = attachmentTitle.trim()
                         val trimmedValue = attachmentValue.trim()
                         when (attachmentFormType) {
-                            ATTACHMENT_FORM_TEXT -> onAddTextAttachment(trimmedTitle, trimmedValue)
-                            ATTACHMENT_FORM_LINK -> onAddLinkAttachment(trimmedTitle, trimmedValue)
+                            ATTACHMENT_FORM_TEXT -> {
+                                onAddTextAttachment(trimmedTitle, trimmedValue)
+                                closeAttachmentForm()
+                            }
+                            ATTACHMENT_FORM_LINK -> {
+                                onAddLinkAttachment(trimmedTitle, trimmedValue)
+                                closeAttachmentForm()
+                            }
+                            ATTACHMENT_FORM_DRIVE_FILE -> {
+                                val id = DriveUrlExtractor.extractFileId(trimmedValue)
+                                if (id != null) {
+                                    onAttachDriveFile(trimmedTitle.ifBlank { "Drive file" }, id, null)
+                                    closeAttachmentForm()
+                                } else {
+                                    driveUrlError = true
+                                }
+                            }
+                            ATTACHMENT_FORM_DRIVE_FOLDER -> {
+                                val id = DriveUrlExtractor.extractFolderId(trimmedValue)
+                                if (id != null) {
+                                    onAttachDriveFolder(trimmedTitle.ifBlank { "Drive folder" }, id)
+                                    closeAttachmentForm()
+                                } else {
+                                    driveUrlError = true
+                                }
+                            }
                         }
-                        closeAttachmentForm()
                     },
                     onCancel = { closeAttachmentForm() }
                 )
-            }
-        }
-        driveMessage?.let { message ->
-            item {
-                DetailEmptyText(message)
             }
         }
         if (attachments.isEmpty()) {
@@ -263,19 +262,29 @@ fun ItemDetailScreen(
     }
 }
 
-private const val ATTACHMENT_FORM_TEXT = "text"
-private const val ATTACHMENT_FORM_LINK = "link"
+private const val ATTACHMENT_FORM_TEXT        = "text"
+private const val ATTACHMENT_FORM_LINK        = "link"
+private const val ATTACHMENT_FORM_DRIVE_FILE   = "drive_file"
+private const val ATTACHMENT_FORM_DRIVE_FOLDER = "drive_folder"
 
 @Composable
 private fun AttachmentForm(
     type: String?,
     title: String,
     value: String,
+    showError: Boolean = false,
     onTitleChange: (String) -> Unit,
     onValueChange: (String) -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val isDriveType = type == ATTACHMENT_FORM_DRIVE_FILE || type == ATTACHMENT_FORM_DRIVE_FOLDER
+    val valueLabel = when (type) {
+        ATTACHMENT_FORM_LINK        -> "URL"
+        ATTACHMENT_FORM_DRIVE_FILE  -> "Drive file URL"
+        ATTACHMENT_FORM_DRIVE_FOLDER -> "Drive folder URL"
+        else                        -> "Text"
+    }
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -283,16 +292,25 @@ private fun AttachmentForm(
         OutlinedTextField(
             value = title,
             onValueChange = onTitleChange,
-            label = { Text("Attachment title") },
+            label = { Text(if (isDriveType) "Label (optional)" else "Attachment title") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text(if (type == ATTACHMENT_FORM_LINK) "URL" else "Text") },
-            modifier = Modifier.fillMaxWidth()
+            label = { Text(valueLabel) },
+            modifier = Modifier.fillMaxWidth(),
+            isError = showError,
+            singleLine = isDriveType
         )
+        if (showError) {
+            Text(
+                text = "Couldn't find a Drive ID in that URL. Paste the full Drive link.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
