@@ -1,5 +1,6 @@
 package com.quem.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -87,6 +88,8 @@ fun QueueListScreen(
                 QueMEmptyState(
                     title = selectedStatus.emptyTitle(),
                     message = selectedStatus.emptyMessage(),
+                    actionLabel = "New item",
+                    onAction = onCreateItem,
                     modifier = Modifier.fillMaxWidth()
                 )
             } else {
@@ -120,6 +123,7 @@ internal fun QueueListItemCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )

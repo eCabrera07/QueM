@@ -6,51 +6,46 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// Extracted from the QueM icon
-private val TealDark    = Color(0xFF0D7A8A)   // deep teal from icon background
-private val TealMid     = Color(0xFF1A8C9B)   // mid teal — brand colour
-private val TealLight   = Color(0xFFEAF6F8)   // almost-white teal
-private val TealOnDark  = Color.White
+// Palette sampled from the QueM icon and softened for readable app surfaces.
+private val TealDark = Color(0xFF0D6F7B)
+private val TealContainer = Color(0xFFDDF0F2)
+private val TealItem = Color(0xFFEAF7F8)
+private val TealOnDark = Color.White
 
-private val OrangeAccent     = Color(0xFFE8962A)   // orange from character's arm
-private val OrangeContainer  = Color(0xFFFFF0D6)
-private val OrangeOnDark     = Color(0xFF3D2000)
+private val AmberAccent = Color(0xFFF4A340)
+private val AmberContainer = Color(0xFFFFE6BF)
+private val AmberOnLight = Color(0xFF382000)
 
-private val White       = Color(0xFFFFFFFF)
-private val OffWhite    = Color(0xFFF4FAFB)   // very slightly teal-tinted white
-private val OnSurface   = Color(0xFF191C1D)
+private val AppBackground = Color(0xFFF6FBFB)
+private val White = Color(0xFFFFFFFF)
+private val OnSurface = Color(0xFF153338)
 
 private val QueMColorScheme = lightColorScheme(
-    // Primary — teal
-    primary              = TealMid,
-    onPrimary            = TealOnDark,
-    primaryContainer     = TealLight,
-    onPrimaryContainer   = TealDark,
+    primary = TealDark,
+    onPrimary = TealOnDark,
+    primaryContainer = TealContainer,
+    onPrimaryContainer = TealDark,
 
-    // Secondary — orange (the accent highlight from the icon)
-    secondary            = OrangeAccent,
-    onSecondary          = TealOnDark,
-    secondaryContainer   = OrangeContainer,
-    onSecondaryContainer = OrangeOnDark,
+    secondary = AmberAccent,
+    onSecondary = AmberOnLight,
+    secondaryContainer = AmberContainer,
+    onSecondaryContainer = AmberOnLight,
 
-    // Tertiary — darker teal for depth
-    tertiary             = TealDark,
-    onTertiary           = TealOnDark,
-    tertiaryContainer    = TealLight,
-    onTertiaryContainer  = TealDark,
+    tertiary = TealDark,
+    onTertiary = TealOnDark,
+    tertiaryContainer = TealItem,
+    onTertiaryContainer = TealDark,
 
-    // Background and surfaces — white
-    background           = White,
-    onBackground         = OnSurface,
-    surface              = White,
-    onSurface            = OnSurface,
-    surfaceVariant       = TealLight,
-    onSurfaceVariant     = Color(0xFF3F484A),
-    outline              = Color(0xFF6F797A),
+    background = AppBackground,
+    onBackground = OnSurface,
+    surface = White,
+    onSurface = OnSurface,
+    surfaceVariant = TealItem,
+    onSurfaceVariant = Color(0xFF42565A),
+    outline = Color(0xFFC9E4E8),
 
-    // Error
-    error                = Color(0xFFBA1A1A),
-    onError              = TealOnDark
+    error = Color(0xFFBA1A1A),
+    onError = TealOnDark
 )
 
 private val QueMTypography = Typography()
