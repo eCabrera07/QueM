@@ -8,7 +8,11 @@ class GoogleDriveConnectionRepository(
     initialAuthorizationCoordinator: DriveAuthorizationCoordinator? = null,
     private val driveAccountPreferences: DriveAccountPreferences? = null
 ) : DriveConnectionRepository {
-    private val mutableState = MutableStateFlow<DriveConnectionState>(DriveConnectionState.Disconnected)
+    private val mutableState = MutableStateFlow<DriveConnectionState>(
+        driveAccountPreferences?.load()
+            ?.let { email -> DriveConnectionState.Connected(DriveAccount(email = email)) }
+            ?: DriveConnectionState.Disconnected
+    )
     private var authorizationCoordinator: DriveAuthorizationCoordinator? = initialAuthorizationCoordinator
 
     override val state: StateFlow<DriveConnectionState> = mutableState.asStateFlow()

@@ -19,6 +19,7 @@ import com.quem.ui.ItemDetailScreen
 import com.quem.ui.QueueListScreen
 import com.quem.ui.QueueViewModel
 import com.quem.ui.SettingsScreen
+import com.quem.ui.SignInScreen
 
 @Composable
 fun QueMApp(
@@ -43,6 +44,15 @@ fun QueMApp(
     val driveConnectionState by viewModel.driveConnectionState.collectAsStateWithLifecycle()
     val archiveQuery by viewModel.archiveQuery.collectAsStateWithLifecycle()
     val archiveResults by viewModel.archiveResults.collectAsStateWithLifecycle()
+
+    if (driveConnectionState is DriveConnectionState.Disconnected ||
+        driveConnectionState is DriveConnectionState.Error) {
+        SignInScreen(
+            errorMessage = (driveConnectionState as? DriveConnectionState.Error)?.message,
+            onSignIn = viewModel::requestDriveSignIn
+        )
+        return
+    }
 
     if (isShowingSettings) {
         SettingsScreen(
