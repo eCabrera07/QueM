@@ -708,6 +708,18 @@ private class FakeQueueRepository : QueueRepository {
             entries.filter { it.queueItemId == queueItemId }.sortedByDescending { it.createdAt }
         }
 
+    override suspend fun deleteAttachment(attachmentId: String) {
+        attachments.value = attachments.value.filterNot { it.id == attachmentId }
+    }
+
+    override suspend fun updateAttachmentTitle(attachmentId: String, title: String) {
+        attachments.value = attachments.value.map { if (it.id == attachmentId) it.copy(displayName = title) else it }
+    }
+
+    override suspend fun deleteHistoryEntry(historyEntryId: String) {
+        historyEntries.value = historyEntries.value.filterNot { it.id == historyEntryId }
+    }
+
     fun emitHistory(vararg entries: HistoryEntry) {
         historyEntries.value = entries.toList()
     }

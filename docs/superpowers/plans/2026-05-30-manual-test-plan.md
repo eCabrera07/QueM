@@ -158,6 +158,74 @@
 
 ---
 
+## 5. Item Sharing (requires Google Drive sign-in)
+
+### 5a. Share button visible on item detail
+
+1. Create an item: `Shared test item`
+2. Tap it to open the detail screen
+
+**Expected:**
+- [ ] **Share** button visible in the top-right alongside **Edit**
+
+### 5b. Share dialog opens and validates email
+
+1. On the detail screen, tap **Share**
+
+**Expected:**
+- [ ] Dialog appears with title "Share item"
+- [ ] Email text field is empty
+- [ ] **Share** confirm button is disabled (no `@` in field)
+
+1. Type `notanemail`
+
+**Expected:**
+- [ ] **Share** button remains disabled
+
+1. Type `alice@example.com`
+
+**Expected:**
+- [ ] **Share** button becomes enabled
+
+### 5c. Cancel share dialog
+
+1. Tap **Cancel** in the share dialog
+
+**Expected:**
+- [ ] Dialog closes
+- [ ] No "Shared with" label appears on the item
+
+### 5d. Share an item successfully
+
+1. Open `Shared test item` → tap **Share**
+2. Enter **your own Gmail address** (easiest to verify)
+3. Tap **Share**
+
+**Expected:**
+- [ ] Dialog closes automatically
+- [ ] "Shared with your@gmail.com" label appears below the sync indicator
+- [ ] You receive a Google Drive "shared with you" email notification
+
+### 5e. Verify Drive file was created
+
+1. Open Google Drive on your phone or at drive.google.com
+2. Navigate to the **QueM** folder
+
+**Expected:**
+- [ ] A file named `shared-<itemId>.json` is present in the QueM folder
+
+### 5f. Share button disabled when not signed in to Drive
+
+1. Sign out of Google Drive (Settings → sign out)
+2. Create a new item and open its detail screen
+3. Tap **Share**, enter an email, tap **Share**
+
+**Expected:**
+- [ ] Error message: "Sign in to Google Drive to share items"
+- [ ] Dialog remains open
+
+---
+
 ## Reporting Issues
 
 If a step produces unexpected behavior, note:

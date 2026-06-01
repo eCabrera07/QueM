@@ -47,4 +47,10 @@ interface QueueRepository {
         mimeType: String?,
         isFolder: Boolean
     )
+
+    suspend fun deleteAttachment(attachmentId: String)
+
+    suspend fun updateAttachmentTitle(attachmentId: String, title: String)
+
+    suspend fun deleteHistoryEntry(historyEntryId: String)
 }

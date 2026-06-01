@@ -35,12 +35,18 @@ import java.time.LocalDate
 enum class SyncIndicator { PENDING, SYNCING, ERROR }
 
 data class AttachmentUi(
+    val id: String,
     val displayName: String,
     val url: String?,
     val driveFileId: String?,
     val isLink: Boolean,
     val isDriveFile: Boolean,
     val isDriveFolder: Boolean
+)
+
+data class HistoryEntryUi(
+    val id: String,
+    val displayText: String
 )
 
 data class QueueItemDetailUi(
@@ -51,7 +57,7 @@ data class QueueItemDetailUi(
     val dueDateLabel: String?,
     val dueDateIso: String?,    // ISO-8601 (e.g. "2026-06-01") — use for pre-populating edit forms
     val attachments: List<AttachmentUi>,
-    val history: List<String>,
+    val history: List<HistoryEntryUi>,
     val syncIndicator: SyncIndicator?,
     val status: QueueStatus
 )
@@ -114,7 +120,7 @@ class QueueViewModel(
                         val now = clock.now()
                         item?.toDetailUi(
                             attachments = attachments.map { it.toAttachmentUi() },
-                            history = history.map { it.toDisplayString(now) }
+                            history = history.map { HistoryEntryUi(it.id, it.toDisplayString(now)) }
                         )
                     }
                 }
@@ -306,6 +312,18 @@ class QueueViewModel(
         )
     }
 
+    fun deleteAttachment(attachmentId: String) {
+        viewModelScope.launch { repository.deleteAttachment(attachmentId) }
+    }
+
+    fun updateAttachmentTitle(attachmentId: String, title: String) {
+        viewModelScope.launch { repository.updateAttachmentTitle(attachmentId, title) }
+    }
+
+    fun deleteHistoryEntry(historyEntryId: String) {
+        viewModelScope.launch { repository.deleteHistoryEntry(historyEntryId) }
+    }
+
     fun backToList() {
         savedStateHandle[KEY_SELECTED_ITEM_ID] = null
         savedStateHandle[KEY_IS_SHOWING_SETTINGS] = false
@@ -387,7 +405,7 @@ private fun QueueItem.toListItemUi(attachmentCount: Int) = QueueListItemUi(
     syncIndicator     = syncState.toIndicator()
 )
 
-private fun QueueItem.toDetailUi(attachments: List<AttachmentUi>, history: List<String>) = QueueItemDetailUi(
+private fun QueueItem.toDetailUi(attachments: List<AttachmentUi>, history: List<HistoryEntryUi>) = QueueItemDetailUi(
     id            = id,
     title         = title,
     description   = description,
@@ -404,6 +422,7 @@ private fun Int.toAttachmentSummary(): String =
     if (this == 1) "1 attachment" else "$this attachments"
 
 private fun Attachment.toAttachmentUi() = AttachmentUi(
+    id            = id,
     displayName   = displayName,
     url           = url,
     driveFileId   = driveFileId,

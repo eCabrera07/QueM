@@ -864,8 +864,22 @@ private class FakeQueueDao : QueueDao {
         attachmentEntities.value = attachmentEntities.value.filterNot { it.id == attachment.id } + attachment
     }
 
+    override suspend fun deleteAttachment(id: String) {
+        attachmentEntities.value = attachmentEntities.value.filterNot { it.id == id }
+    }
+
+    override suspend fun updateAttachmentTitle(id: String, title: String, updatedAt: java.time.Instant) {
+        attachmentEntities.value = attachmentEntities.value.map {
+            if (it.id == id) it.copy(displayName = title) else it
+        }
+    }
+
     override suspend fun upsertHistoryEntry(entry: HistoryEntryEntity) {
         historyEntities.value = historyEntities.value.filterNot { it.id == entry.id } + entry
+    }
+
+    override suspend fun deleteHistoryEntry(id: String) {
+        historyEntities.value = historyEntities.value.filterNot { it.id == id }
     }
 
     override fun observeAttachments(queueItemId: String): Flow<List<AttachmentEntity>> =

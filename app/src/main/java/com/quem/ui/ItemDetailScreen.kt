@@ -32,6 +32,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import com.quem.core.model.QueueStatus
 import com.quem.drive.DriveUrlExtractor
 import androidx.compose.ui.graphics.Color
@@ -47,7 +55,7 @@ fun ItemDetailScreen(
     description: String?,
     dueDateLabel: String?,
     attachments: List<AttachmentUi>,
-    history: List<String>,
+    history: List<HistoryEntryUi>,
     priorityLabel: String? = null,
     syncIndicator: SyncIndicator? = null,
     currentStatus: QueueStatus = QueueStatus.QUEUED,
@@ -57,7 +65,10 @@ fun ItemDetailScreen(
     onAddTextAttachment: (title: String, text: String) -> Unit = { _, _ -> },
     onAddLinkAttachment: (title: String, url: String) -> Unit = { _, _ -> },
     onAttachDriveFile: (title: String, driveFileId: String, mimeType: String?) -> Unit = { _, _, _ -> },
-    onAttachDriveFolder: (title: String, driveFolderId: String) -> Unit = { _, _ -> }
+    onAttachDriveFolder: (title: String, driveFolderId: String) -> Unit = { _, _ -> },
+    onDeleteAttachment: (attachmentId: String) -> Unit = {},
+    onRenameAttachment: (attachmentId: String, newTitle: String) -> Unit = { _, _ -> },
+    onDeleteHistoryEntry: (historyEntryId: String) -> Unit = {}
 ) {
     val uriHandler = LocalUriHandler.current
     var attachmentFormType by rememberSaveable { mutableStateOf<String?>(null) }
@@ -220,13 +231,19 @@ fun ItemDetailScreen(
                         attachment.driveFileId?.let { "https://drive.google.com/open?id=$it" }
                     else -> null
                 }
-                if (url != null) {
-                    AttachmentLinkText(
-                        text = attachment.displayName,
-                        onClick = { uriHandler.openUri(url) }
-                    )
-                } else {
-                    DetailListText(attachment.displayName)
+                DeletableRow(
+                    onDelete = { onDeleteAttachment(attachment.id) },
+                    onRename = { newTitle -> onRenameAttachment(attachment.id, newTitle) },
+                    currentName = attachment.displayName
+                ) {
+                    if (url != null) {
+                        AttachmentLinkText(
+                            text = attachment.displayName,
+                            onClick = { uriHandler.openUri(url) }
+                        )
+                    } else {
+                        DetailListText(attachment.displayName)
+                    }
                 }
             }
         }
@@ -239,8 +256,12 @@ fun ItemDetailScreen(
                 DetailEmptyText("No history")
             }
         } else {
-            items(history) { event ->
-                DetailListText(event)
+            items(history) { entry ->
+                DeletableRow(
+                    onDelete = { onDeleteHistoryEntry(entry.id) }
+                ) {
+                    DetailListText(entry.displayText)
+                }
             }
         }
 
@@ -347,6 +368,66 @@ private fun DetailListText(text: String) {
             .padding(vertical = 4.dp),
         style = MaterialTheme.typography.bodyMedium
     )
+}
+
+@Composable
+private fun DeletableRow(
+    onDelete: () -> Unit,
+    onRename: ((String) -> Unit)? = null,
+    currentName: String = "",
+    content: @Composable () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var renameValue by remember { mutableStateOf(currentName) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Box(modifier = Modifier.weight(1f)) { content() }
+        Box(modifier = Modifier.wrapContentSize()) {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "Options")
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                if (onRename != null) {
+                    DropdownMenuItem(
+                        text = { Text("Rename") },
+                        onClick = { menuExpanded = false; renameValue = currentName; showRenameDialog = true }
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                    onClick = { menuExpanded = false; onDelete() }
+                )
+            }
+        }
+    }
+
+    if (showRenameDialog && onRename != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showRenameDialog = false },
+            title = { Text("Rename") },
+            text = {
+                OutlinedTextField(
+                    value = renameValue,
+                    onValueChange = { renameValue = it },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { onRename(renameValue); showRenameDialog = false },
+                    enabled = renameValue.isNotBlank()
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showRenameDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 private fun String.toAbsoluteUrl(): String =

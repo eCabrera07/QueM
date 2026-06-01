@@ -78,12 +78,19 @@ fun QueMApp(
     } else if (isEditingItem) {
         val item = selectedItem ?: return
         EditItemScreen(
-            initialTitle       = item.title,
-            initialDescription = item.description ?: "",
-            initialPriority    = item.priorityLabel ?: "",
-            initialDueDate     = item.dueDateIso ?: "",
-            onSave             = viewModel::saveEdit,
-            onCancel           = viewModel::cancelEdit
+            initialTitle         = item.title,
+            initialDescription   = item.description ?: "",
+            initialPriority      = item.priorityLabel ?: "",
+            initialDueDate       = item.dueDateIso ?: "",
+            attachments          = item.attachments,
+            onSave               = viewModel::saveEdit,
+            onCancel             = viewModel::cancelEdit,
+            onAddTextAttachment  = viewModel::addTextAttachment,
+            onAddLinkAttachment  = viewModel::addLinkAttachment,
+            onAttachDriveFile    = { title, id, mime -> viewModel.addDriveFileAttachment(title, id, mime) },
+            onAttachDriveFolder  = { title, id -> viewModel.addDriveFolderAttachment(title, id) },
+            onDeleteAttachment   = viewModel::deleteAttachment,
+            onRenameAttachment   = viewModel::updateAttachmentTitle
         )
     } else if (isShowingArchive) {
         ArchiveSearchScreen(
@@ -131,7 +138,10 @@ fun QueMApp(
                     driveFolderId = driveFolderId
                 )
             },
-            onBack    = viewModel::backToList
+            onDeleteAttachment    = viewModel::deleteAttachment,
+            onRenameAttachment    = viewModel::updateAttachmentTitle,
+            onDeleteHistoryEntry  = viewModel::deleteHistoryEntry,
+            onBack                = viewModel::backToList
         )
     }
 }

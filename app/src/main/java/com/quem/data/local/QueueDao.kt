@@ -92,8 +92,17 @@ interface QueueDao {
     @Upsert
     suspend fun upsertAttachment(attachment: AttachmentEntity)
 
+    @Query("DELETE FROM attachments WHERE id = :id")
+    suspend fun deleteAttachment(id: String)
+
+    @Query("UPDATE attachments SET displayName = :title, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateAttachmentTitle(id: String, title: String, updatedAt: Instant)
+
     @Upsert
     suspend fun upsertHistoryEntry(entry: HistoryEntryEntity)
+
+    @Query("DELETE FROM history_entries WHERE id = :id")
+    suspend fun deleteHistoryEntry(id: String)
 
     @Query("SELECT * FROM attachments WHERE queueItemId = :queueItemId ORDER BY createdAt DESC, id ASC")
     fun observeAttachments(queueItemId: String): Flow<List<AttachmentEntity>>

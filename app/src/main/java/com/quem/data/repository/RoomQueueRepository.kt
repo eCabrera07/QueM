@@ -243,6 +243,20 @@ class RoomQueueRepository(
         }
     }
 
+    override suspend fun deleteAttachment(attachmentId: String) {
+        dao.deleteAttachment(attachmentId)
+    }
+
+    override suspend fun updateAttachmentTitle(attachmentId: String, title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isBlank()) return
+        dao.updateAttachmentTitle(attachmentId, trimmed, clock.now())
+    }
+
+    override suspend fun deleteHistoryEntry(historyEntryId: String) {
+        dao.deleteHistoryEntry(historyEntryId)
+    }
+
     private companion object {
         private const val TAG = "RoomQueueRepository"
     }

@@ -27,8 +27,8 @@ class ItemDetailScreenTest {
                 title = "Read contract",
                 description = null,
                 dueDateLabel = null,
-                attachments = listOf(AttachmentUi(displayName = "contract.pdf", url = null, driveFileId = null, isLink = false, isDriveFile = false, isDriveFolder = false)),
-                history = listOf("Created item"),
+                attachments = listOf(AttachmentUi(id = "a1", displayName = "contract.pdf", url = null, driveFileId = null, isLink = false, isDriveFile = false, isDriveFolder = false)),
+                history = listOf(HistoryEntryUi(id = "h1", displayText = "Created item")),
                 onBack = {}
             )
         }
@@ -51,7 +51,7 @@ class ItemDetailScreenTest {
                 description = null,
                 dueDateLabel = null,
                 attachments = emptyList(),
-                history = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
                 
                 
                 onBack = { backed = true }
@@ -78,7 +78,7 @@ class ItemDetailScreenTest {
                 description = null,
                 dueDateLabel = null,
                 attachments = emptyList(),
-                history = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
                 onBack = {},
                 onAddTextAttachment = { title, text ->
                     savedTitle = title
@@ -107,7 +107,7 @@ class ItemDetailScreenTest {
                 description = null,
                 dueDateLabel = null,
                 attachments = emptyList(),
-                history = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
                 onBack = {},
                 onAddLinkAttachment = { title, url ->
                     savedTitle = title
@@ -135,7 +135,7 @@ class ItemDetailScreenTest {
                 description = null,
                 dueDateLabel = null,
                 attachments = emptyList(),
-                history = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
                 onBack = {},
                 onAddTextAttachment = { _, _ -> saved = true }
             )
@@ -159,7 +159,7 @@ class ItemDetailScreenTest {
                 description = null,
                 dueDateLabel = null,
                 attachments = emptyList(),
-                history = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
                 onBack = {}
             )
         }
@@ -180,7 +180,7 @@ class ItemDetailScreenTest {
                 description = null,
                 dueDateLabel = null,
                 attachments = emptyList(),
-                history = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
                 onAttachDriveFile = { title, id, _ -> capturedTitle = title; capturedId = id },
                 onBack = {}
             )
@@ -204,7 +204,7 @@ class ItemDetailScreenTest {
                 description = null,
                 dueDateLabel = null,
                 attachments = emptyList(),
-                history = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
                 onBack = {}
             )
         }
@@ -225,7 +225,7 @@ class ItemDetailScreenTest {
                 dueDateLabel = null,
                 priorityLabel = "HIGH",
                 attachments = emptyList(),
-                history = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
                 onBack = {}
             )
         }
@@ -242,7 +242,7 @@ class ItemDetailScreenTest {
                 description = null,
                 dueDateLabel = null,
                 attachments = emptyList(),
-                history = emptyList(),
+                history = emptyList<HistoryEntryUi>(),
                 onBack = {},
                 onEdit = { edited = true }
             )
