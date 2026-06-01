@@ -24,10 +24,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.wrapContentSize
@@ -42,7 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.quem.core.model.QueueStatus
-import com.quem.drive.DriveUrlExtractor
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -62,33 +59,11 @@ fun ItemDetailScreen(
     onStatusChange: (QueueStatus) -> Unit = {},
     onBack: () -> Unit,
     onEdit: () -> Unit = {},
-    onAddTextAttachment: (title: String, text: String) -> Unit = { _, _ -> },
-    onAddLinkAttachment: (title: String, url: String) -> Unit = { _, _ -> },
-    onAttachDriveFile: (title: String, driveFileId: String, mimeType: String?) -> Unit = { _, _, _ -> },
-    onAttachDriveFolder: (title: String, driveFolderId: String) -> Unit = { _, _ -> },
     onDeleteAttachment: (attachmentId: String) -> Unit = {},
     onRenameAttachment: (attachmentId: String, newTitle: String) -> Unit = { _, _ -> },
     onDeleteHistoryEntry: (historyEntryId: String) -> Unit = {}
 ) {
     val uriHandler = LocalUriHandler.current
-    var attachmentFormType by rememberSaveable { mutableStateOf<String?>(null) }
-    var attachmentTitle by rememberSaveable { mutableStateOf("") }
-    var attachmentValue by rememberSaveable { mutableStateOf("") }
-    var driveUrlError by rememberSaveable { mutableStateOf(false) }
-
-    fun openAttachmentForm(type: String) {
-        driveUrlError = false
-        attachmentTitle = ""
-        attachmentValue = ""
-        attachmentFormType = type
-    }
-
-    fun closeAttachmentForm() {
-        driveUrlError = false
-        attachmentTitle = ""
-        attachmentValue = ""
-        attachmentFormType = null
-    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -165,59 +140,6 @@ fun ItemDetailScreen(
 
         item {
             DetailSectionHeader("Attachments")
-        }
-        item {
-            if (attachmentFormType == null) {
-                AttachmentEditor(
-                    onAddText = { openAttachmentForm(ATTACHMENT_FORM_TEXT) },
-                    onAddLink = { openAttachmentForm(ATTACHMENT_FORM_LINK) },
-                    onAttachDriveFile = { openAttachmentForm(ATTACHMENT_FORM_DRIVE_FILE) },
-                    onAttachDriveFolder = { openAttachmentForm(ATTACHMENT_FORM_DRIVE_FOLDER) },
-                    showDriveActions = true
-                )
-            } else {
-                AttachmentForm(
-                    type = attachmentFormType,
-                    title = attachmentTitle,
-                    value = attachmentValue,
-                    showError = driveUrlError,
-                    onTitleChange = { attachmentTitle = it },
-                    onValueChange = { driveUrlError = false; attachmentValue = it },
-                    onSave = {
-                        val trimmedTitle = attachmentTitle.trim()
-                        val trimmedValue = attachmentValue.trim()
-                        when (attachmentFormType) {
-                            ATTACHMENT_FORM_TEXT -> {
-                                onAddTextAttachment(trimmedTitle, trimmedValue)
-                                closeAttachmentForm()
-                            }
-                            ATTACHMENT_FORM_LINK -> {
-                                onAddLinkAttachment(trimmedTitle, trimmedValue)
-                                closeAttachmentForm()
-                            }
-                            ATTACHMENT_FORM_DRIVE_FILE -> {
-                                val id = DriveUrlExtractor.extractFileId(trimmedValue)
-                                if (id != null) {
-                                    onAttachDriveFile(trimmedTitle.ifBlank { "Drive file" }, id, null)
-                                    closeAttachmentForm()
-                                } else {
-                                    driveUrlError = true
-                                }
-                            }
-                            ATTACHMENT_FORM_DRIVE_FOLDER -> {
-                                val id = DriveUrlExtractor.extractFolderId(trimmedValue)
-                                if (id != null) {
-                                    onAttachDriveFolder(trimmedTitle.ifBlank { "Drive folder" }, id)
-                                    closeAttachmentForm()
-                                } else {
-                                    driveUrlError = true
-                                }
-                            }
-                        }
-                    },
-                    onCancel = { closeAttachmentForm() }
-                )
-            }
         }
         if (attachments.isEmpty()) {
             item {

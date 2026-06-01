@@ -103,21 +103,6 @@ fun QueMApp(
                 currentStatus = item.status,
                 onStatusChange = viewModel::changeStatusOfSelectedItem,
                 onEdit = viewModel::startEdit,
-                onAddTextAttachment = viewModel::addTextAttachment,
-                onAddLinkAttachment = viewModel::addLinkAttachment,
-                onAttachDriveFile = { title, driveFileId, mimeType ->
-                    viewModel.addDriveFileAttachment(
-                        title = title,
-                        driveFileId = driveFileId,
-                        mimeType = mimeType
-                    )
-                },
-                onAttachDriveFolder = { title, driveFolderId ->
-                    viewModel.addDriveFolderAttachment(
-                        title = title,
-                        driveFolderId = driveFolderId
-                    )
-                },
                 onDeleteAttachment = viewModel::deleteAttachment,
                 onRenameAttachment = viewModel::updateAttachmentTitle,
                 onDeleteHistoryEntry = viewModel::deleteHistoryEntry,
