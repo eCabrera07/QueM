@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GoogleDriveGatewayTest {
@@ -60,6 +61,32 @@ class GoogleDriveGatewayTest {
                 "appProperties has { key = 'quemRole' and value = 'metadataFile' } and trashed = false",
             query
         )
+    }
+
+    @Test
+    fun subfolderQueryMatchesNamedChildWithItemFilesFolderRole() {
+        val query = GoogleDriveQueries.subfolderQuery(
+            parentId   = "parent-folder-id",
+            folderName = "item-abc"
+        )
+
+        assertEquals(
+            "mimeType = 'application/vnd.google-apps.folder' and " +
+                "name = 'item-abc' and " +
+                "'parent-folder-id' in parents and " +
+                "appProperties has { key = 'quemRole' and value = 'itemFilesFolder' } and trashed = false",
+            query
+        )
+    }
+
+    @Test
+    fun subfolderQueryEscapesApostrophesInNamesAndIds() {
+        val query = GoogleDriveQueries.subfolderQuery(
+            parentId   = "O'Brien-folder",
+            folderName = "it's-item"
+        )
+
+        assertTrue(query.contains("\\'"))   // both values escaped
     }
 
     @Test

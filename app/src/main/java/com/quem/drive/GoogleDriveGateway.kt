@@ -182,7 +182,8 @@ object GoogleDriveQueries {
         "mimeType = ${literal(FOLDER_MIME_TYPE)} and " +
         "name = ${literal(folderName)} and " +
         "${literal(parentId)} in parents and " +
-        "trashed = false"
+        appPropertyEquals(APP_PROPERTY_ROLE, APP_PROPERTY_ITEM_FILES_FOLDER) +
+        " and trashed = false"
 
     private fun appPropertyEquals(key: String, value: String): String =
         "appProperties has { key = ${literal(key)} and value = ${literal(value)} }"
