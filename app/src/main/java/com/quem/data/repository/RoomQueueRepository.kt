@@ -293,6 +293,7 @@ class RoomQueueRepository(
     ): String {
         val trimmedName = displayName.trim()
         if (trimmedName.isBlank()) return ""
+        if (uri.isBlank()) return ""
         if (dao.observeItem(queueItemId).first() == null) return ""
 
         val now = clock.now()

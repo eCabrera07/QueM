@@ -838,6 +838,7 @@ class RoomQueueRepositoryTest {
         assertTrue(result)
         assertEquals("item-1", gateway.capturedItemId)
         assertEquals("photo.jpg", gateway.capturedFileName)
+        assertEquals("content://media/1234", gateway.capturedUriString)
         val entity = dao.observeAttachment("attachment-1").first()
         requireNotNull(entity)
         assertEquals("DRIVE_FILE", entity.type)
@@ -1151,6 +1152,7 @@ private class FakeShareGateway : DriveShareGateway {
 private class FakeDriveFileUploadGateway : com.quem.drive.DriveFileUploadGateway {
     var capturedItemId: String? = null
     var capturedFileName: String? = null
+    var capturedUriString: String? = null
     var shouldThrow: Exception? = null
 
     override suspend fun uploadLocalFile(
@@ -1161,8 +1163,9 @@ private class FakeDriveFileUploadGateway : com.quem.drive.DriveFileUploadGateway
         uriString: String
     ): String {
         shouldThrow?.let { throw it }
-        capturedItemId   = itemId
-        capturedFileName = fileName
+        capturedItemId    = itemId
+        capturedFileName  = fileName
+        capturedUriString = uriString
         return "uploaded-drive-file-id"
     }
 }
