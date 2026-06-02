@@ -4,5 +4,6 @@ enum class AttachmentType {
     TEXT,
     LINK,
     DRIVE_FILE,
-    DRIVE_FOLDER
+    DRIVE_FOLDER,
+    LOCAL_FILE
 }

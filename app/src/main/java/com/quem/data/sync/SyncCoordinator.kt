@@ -1,5 +1,6 @@
 package com.quem.data.sync
 
+import com.quem.core.model.AttachmentType
 import com.quem.core.time.Clock
 import com.quem.data.local.QueueDao
 import com.quem.data.local.toDomain
@@ -17,9 +18,11 @@ class SyncCoordinator(
             mergeCoordinator.merge(remoteSnapshot)
         }
 
-        // 2. Upload merged local state
+        // 2. Upload merged local state — exclude LOCAL_FILE attachments (upload pending/failed)
         val items       = dao.allItems().map { it.toDomain() }
-        val attachments = dao.allAttachments().map { it.toDomain() }
+        val attachments = dao.allAttachments()
+            .map { it.toDomain() }
+            .filter { it.type != AttachmentType.LOCAL_FILE }
         val history     = dao.allHistory().map { it.toDomain() }
 
         val snapshot = MetadataExporter.export(

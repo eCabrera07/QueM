@@ -4,5 +4,7 @@ enum class SyncState {
     SYNCED,
     PENDING_SYNC,
     SYNCING,
-    ERROR
+    ERROR,
+    PENDING_UPLOAD,
+    UPLOAD_FAILED
 }

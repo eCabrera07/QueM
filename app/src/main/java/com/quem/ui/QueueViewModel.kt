@@ -569,10 +569,12 @@ private fun Attachment.toAttachmentUi() = AttachmentUi(
 )
 
 private fun SyncState.toIndicator(): SyncIndicator? = when (this) {
-    SyncState.SYNCED       -> null
-    SyncState.PENDING_SYNC -> SyncIndicator.PENDING
-    SyncState.SYNCING      -> SyncIndicator.SYNCING
-    SyncState.ERROR        -> SyncIndicator.ERROR
+    SyncState.SYNCED         -> null
+    SyncState.PENDING_SYNC   -> SyncIndicator.PENDING
+    SyncState.SYNCING        -> SyncIndicator.SYNCING
+    SyncState.ERROR          -> SyncIndicator.ERROR
+    SyncState.PENDING_UPLOAD -> SyncIndicator.PENDING
+    SyncState.UPLOAD_FAILED  -> SyncIndicator.ERROR
 }
 
 private fun String?.toPriorityOrNull(): Priority? {
