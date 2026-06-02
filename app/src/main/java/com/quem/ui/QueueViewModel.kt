@@ -16,9 +16,11 @@ import com.quem.core.model.SyncState
 import com.quem.core.time.Clock
 import com.quem.core.time.SystemClock
 import com.quem.data.repository.QueueRepository
+import android.content.ContentResolver
 import com.quem.drive.DisconnectedDriveConnectionRepository
 import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.DriveConnectionState
+import com.quem.drive.DriveFileUploadGateway
 import com.quem.drive.DriveShareGateway
 import java.time.Duration
 import java.time.Instant
@@ -32,12 +34,15 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 enum class SyncIndicator { PENDING, SYNCING, ERROR }
+
+enum class UploadState { NONE, IN_PROGRESS, FAILED }
 
 data class AttachmentUi(
     val id: String,
@@ -46,7 +51,8 @@ data class AttachmentUi(
     val driveFileId: String?,
     val isLink: Boolean,
     val isDriveFile: Boolean,
-    val isDriveFolder: Boolean
+    val isDriveFolder: Boolean,
+    val uploadState: UploadState = UploadState.NONE
 )
 
 data class HistoryEntryUi(
@@ -77,6 +83,9 @@ class QueueViewModel(
     private val clock: Clock = SystemClock(),
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
+
+    private val _uploadingAttachmentIds = MutableStateFlow<Set<String>>(emptySet())
+
     val selectedStatus: StateFlow<QueueStatus> =
         savedStateHandle.getStateFlow(KEY_SELECTED_STATUS, QueueStatus.QUEUED)
 
@@ -118,29 +127,39 @@ class QueueViewModel(
             )
 
     val selectedItem: StateFlow<QueueItemDetailUi?> =
-        selectedItemId
-            .flatMapLatest { id ->
-                if (id == null) {
-                    flowOf(null)
-                } else {
-                    combine(
-                        repository.observeItem(id),
-                        repository.observeAttachments(id),
-                        repository.observeHistory(id)
-                    ) { item, attachments, history ->
-                        val now = clock.now()
-                        item?.toDetailUi(
-                            attachments = attachments.map { it.toAttachmentUi() },
-                            history = history.map { HistoryEntryUi(it.id, it.toDisplayString(now)) }
-                        )
+        combine(
+            selectedItemId
+                .flatMapLatest { id ->
+                    if (id == null) {
+                        flowOf(null)
+                    } else {
+                        combine(
+                            repository.observeItem(id),
+                            repository.observeAttachments(id),
+                            repository.observeHistory(id)
+                        ) { item, attachments, history ->
+                            val now = clock.now()
+                            item?.toDetailUi(
+                                attachments = attachments.map { it.toAttachmentUi() },
+                                history     = history.map { HistoryEntryUi(it.id, it.toDisplayString(now)) }
+                            )
+                        }
                     }
+                },
+            _uploadingAttachmentIds
+        ) { detail, uploadingIds ->
+            detail?.copy(
+                attachments = detail.attachments.map { att ->
+                    if (att.id in uploadingIds) att.copy(uploadState = UploadState.IN_PROGRESS)
+                    else att
                 }
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
-                initialValue = null
             )
+        }
+        .stateIn(
+            scope        = viewModelScope,
+            started      = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
+            initialValue = null
+        )
 
     val isShowingArchive: StateFlow<Boolean> =
         savedStateHandle.getStateFlow(KEY_IS_SHOWING_ARCHIVE, screen.value == QueMScreen.Archive)
@@ -333,6 +352,48 @@ class QueueViewModel(
 
     fun deleteHistoryEntry(historyEntryId: String) {
         viewModelScope.launch { repository.deleteHistoryEntry(historyEntryId) }
+    }
+
+    fun attachAndUploadLocalFile(
+        uri: String,
+        displayName: String,
+        mimeType: String?,
+        contentResolver: ContentResolver,
+        gatewayFactory: () -> DriveFileUploadGateway
+    ) {
+        val itemId = selectedItemId.value ?: return
+        viewModelScope.launch {
+            val attachmentId = repository.attachLocalFile(
+                queueItemId = itemId,
+                uri         = uri,
+                displayName = displayName,
+                mimeType    = mimeType
+            )
+            if (attachmentId.isBlank()) return@launch
+            _uploadingAttachmentIds.update { it + attachmentId }
+            try {
+                val gateway = withContext(ioDispatcher) { gatewayFactory() }
+                repository.uploadPendingFile(attachmentId, contentResolver, gateway)
+            } finally {
+                _uploadingAttachmentIds.update { it - attachmentId }
+            }
+        }
+    }
+
+    fun retryFileUpload(
+        attachmentId: String,
+        contentResolver: ContentResolver,
+        gatewayFactory: () -> DriveFileUploadGateway
+    ) {
+        viewModelScope.launch {
+            _uploadingAttachmentIds.update { it + attachmentId }
+            try {
+                val gateway = withContext(ioDispatcher) { gatewayFactory() }
+                repository.retryFileUpload(attachmentId, contentResolver, gateway)
+            } finally {
+                _uploadingAttachmentIds.update { it - attachmentId }
+            }
+        }
     }
 
     fun backToList() {
@@ -565,7 +626,8 @@ private fun Attachment.toAttachmentUi() = AttachmentUi(
     driveFileId   = driveFileId,
     isLink        = type == AttachmentType.LINK,
     isDriveFile   = type == AttachmentType.DRIVE_FILE,
-    isDriveFolder = type == AttachmentType.DRIVE_FOLDER
+    isDriveFolder = type == AttachmentType.DRIVE_FOLDER,
+    uploadState   = if (syncState == SyncState.UPLOAD_FAILED) UploadState.FAILED else UploadState.NONE
 )
 
 private fun SyncState.toIndicator(): SyncIndicator? = when (this) {

@@ -788,6 +788,76 @@ class QueueViewModelTest {
         assertNotNull(viewModel.shareError.value)
     }
 
+    @Test
+    fun attachAndUploadLocalFileStoresAttachmentAndStartsUpload() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(title = "Report", description = null, priority = null, dueDate = null)
+        val viewModel = QueueViewModel(
+            repository   = repository,
+            ioDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+        )
+        collectSelectedItem(viewModel)
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+
+        viewModel.attachAndUploadLocalFile(
+            uri             = "content://media/1234",
+            displayName     = "photo.jpg",
+            mimeType        = "image/jpeg",
+            contentResolver = object : android.content.ContentResolver(null) {}
+        ) { FakeDriveFileUploadGateway() }
+        advanceUntilIdle()
+
+        assertEquals("item-1", repository.lastLocalFileItemId)
+        assertEquals("content://media/1234", repository.lastLocalFileUri)
+        assertEquals("photo.jpg", repository.lastLocalFileDisplayName)
+    }
+
+    @Test
+    fun attachmentUiUploadStateIsFailedWhenSyncStateIsUploadFailed() = runTest {
+        val repository = FakeQueueRepository()
+        repository.items.value = listOf(
+            queueItem(id = "item-1", title = "Report", description = null, status = QueueStatus.QUEUED)
+        )
+        repository.attachments.value = listOf(
+            attachment(
+                id          = "att-1",
+                queueItemId = "item-1",
+                type        = com.quem.core.model.AttachmentType.LOCAL_FILE,
+                syncState   = com.quem.core.model.SyncState.UPLOAD_FAILED
+            )
+        )
+        val viewModel = QueueViewModel(repository)
+        collectSelectedItem(viewModel)
+
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+
+        val attachmentUi = viewModel.selectedItem.value?.attachments?.first()
+        assertEquals(UploadState.FAILED, attachmentUi?.uploadState)
+    }
+
+    @Test
+    fun retryFileUploadCallsRepositoryRetry() = runTest {
+        val repository = FakeQueueRepository()
+        repository.createItem(title = "Report", description = null, priority = null, dueDate = null)
+        val viewModel = QueueViewModel(
+            repository   = repository,
+            ioDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)
+        )
+        collectSelectedItem(viewModel)
+        viewModel.selectItem("item-1")
+        advanceUntilIdle()
+
+        viewModel.retryFileUpload(
+            attachmentId    = "local-attachment-1",
+            contentResolver = object : android.content.ContentResolver(null) {}
+        ) { FakeDriveFileUploadGateway() }
+        advanceUntilIdle()
+
+        assertTrue(repository.uploadPendingFileReturns)
+    }
+
     private fun TestScope.collectSelectedItem(viewModel: QueueViewModel) {
         backgroundScope.launch { viewModel.selectedItem.collect() }
         runCurrent()
@@ -819,7 +889,7 @@ class MainDispatcherRule(
 
 private class FakeQueueRepository(private val shareReturns: Boolean = true) : QueueRepository {
     val items = MutableStateFlow<List<QueueItem>>(emptyList())
-    private val attachments = MutableStateFlow<List<Attachment>>(emptyList())
+    val attachments = MutableStateFlow<List<Attachment>>(emptyList())
     private val historyEntries = MutableStateFlow<List<HistoryEntry>>(emptyList())
 
     private var nextId = 1
@@ -894,7 +964,7 @@ private class FakeQueueRepository(private val shareReturns: Boolean = true) : Qu
     }
 
     override fun observeAttachments(queueItemId: String): Flow<List<Attachment>> =
-        attachments.map { attachments -> attachments.filter { it.queueItemId == queueItemId } }
+        attachments.map { list -> list.filter { it.queueItemId == queueItemId } }
 
     fun attachmentDisplayNames(): List<String> =
         attachments.value.map { it.displayName }
@@ -971,24 +1041,35 @@ private class FakeQueueRepository(private val shareReturns: Boolean = true) : Qu
         return shareReturns
     }
 
+    var lastLocalFileItemId: String? = null
+    var lastLocalFileUri: String? = null
+    var lastLocalFileDisplayName: String? = null
+    private val localFileAttachmentId = "local-attachment-1"
+    var uploadPendingFileReturns: Boolean = true
+
     override suspend fun attachLocalFile(
         queueItemId: String,
         uri: String,
         displayName: String,
         mimeType: String?
-    ): String = error("not implemented in FakeQueueRepository")
+    ): String {
+        lastLocalFileItemId      = queueItemId
+        lastLocalFileUri         = uri
+        lastLocalFileDisplayName = displayName
+        return localFileAttachmentId
+    }
 
     override suspend fun uploadPendingFile(
         attachmentId: String,
         contentResolver: android.content.ContentResolver,
         gateway: com.quem.drive.DriveFileUploadGateway
-    ): Boolean = error("not implemented in FakeQueueRepository")
+    ): Boolean = uploadPendingFileReturns
 
     override suspend fun retryFileUpload(
         attachmentId: String,
         contentResolver: android.content.ContentResolver,
         gateway: com.quem.drive.DriveFileUploadGateway
-    ): Boolean = error("not implemented in FakeQueueRepository")
+    ): Boolean = uploadPendingFileReturns
 
     fun emitHistory(vararg entries: HistoryEntry) {
         historyEntries.value = entries.toList()
@@ -1065,3 +1146,32 @@ private class FakeDriveShareGateway : com.quem.drive.DriveShareGateway {
     override suspend fun publishSharedItemFile(itemId: String, content: String) = "fake-file-id"
     override suspend fun grantWriterAccess(fileId: String, recipientEmail: String) = Unit
 }
+
+private class FakeDriveFileUploadGateway : com.quem.drive.DriveFileUploadGateway {
+    override suspend fun uploadLocalFile(
+        itemId: String,
+        fileName: String,
+        mimeType: String,
+        contentResolver: android.content.ContentResolver,
+        uriString: String
+    ): String = "uploaded-id"
+}
+
+private fun attachment(
+    id: String,
+    queueItemId: String,
+    type: com.quem.core.model.AttachmentType = com.quem.core.model.AttachmentType.DRIVE_FILE,
+    syncState: com.quem.core.model.SyncState = com.quem.core.model.SyncState.SYNCED
+) = com.quem.core.model.Attachment(
+    id          = id,
+    queueItemId = queueItemId,
+    type        = type,
+    displayName = "file.pdf",
+    textContent = null,
+    url         = if (type == com.quem.core.model.AttachmentType.LOCAL_FILE) "content://media/1" else null,
+    driveFileId = if (type != com.quem.core.model.AttachmentType.LOCAL_FILE) "drive-id" else null,
+    mimeType    = "application/pdf",
+    createdAt   = java.time.Instant.parse("2026-06-02T10:00:00Z"),
+    updatedAt   = java.time.Instant.parse("2026-06-02T10:00:00Z"),
+    syncState   = syncState
+)
