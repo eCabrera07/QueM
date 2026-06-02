@@ -66,6 +66,35 @@ class DrivePickerRepository(private val contentResolver: ContentResolver) {
         callback?.invoke(uri?.toFolderSelection())
     }
 
+    private var pendingLocalFileCallback: ((LocalFileSelection?) -> Unit)? = null
+
+    @MainThread
+    fun clearPendingLocalFileCallback() { pendingLocalFileCallback = null }
+
+    @MainThread
+    fun setPendingLocalFileCallback(callback: (LocalFileSelection?) -> Unit): Boolean {
+        if (pendingLocalFileCallback != null) return false
+        pendingLocalFileCallback = callback
+        return true
+    }
+
+    /** Called by MainActivity when the local file picker Activity Result arrives. */
+    @MainThread
+    fun handleLocalFileResult(uri: Uri?) {
+        val callback = pendingLocalFileCallback
+        pendingLocalFileCallback = null
+        callback?.invoke(uri?.toLocalFileSelection())
+    }
+
+    private fun Uri.toLocalFileSelection(): LocalFileSelection? {
+        val (displayName, mimeType) = queryMetadata()
+        return LocalFileSelection(
+            uri         = this,
+            displayName = displayName ?: lastPathSegment ?: "file",
+            mimeType    = mimeType
+        )
+    }
+
     private fun Uri.toFileSelection(): DriveSelection? {
         val documentId = runCatching { DocumentsContract.getDocumentId(this) }.getOrNull()
         Log.d("DrivePicker", "toFileSelection uri=$this documentId=$documentId authority=${authority}")
