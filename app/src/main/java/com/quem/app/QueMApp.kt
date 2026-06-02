@@ -169,52 +169,51 @@ fun QueMApp(
                 onPickLocalFile = {
                     drivePickerCoordinator.pickLocalFile { selection ->
                         if (selection != null) {
-                            val connectedState = driveConnectionState as? DriveConnectionState.Connected
-                            val accountEmail = connectedState?.account?.email
+                            val accountEmail = driveConnectionState.accountEmail()
                             if (accountEmail != null) {
                                 viewModel.attachAndUploadLocalFile(
                                     uri             = selection.uriString,
                                     displayName     = selection.displayName,
                                     mimeType        = selection.mimeType,
-                                    contentResolver = context.contentResolver
-                                ) {
-                                    val credential = GoogleAccountCredential
-                                        .usingOAuth2(context, listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE))
-                                        .setSelectedAccountName(accountEmail)
-                                    val drive = Drive.Builder(
-                                        NetHttpTransport(),
-                                        GsonFactory.getDefaultInstance(),
-                                        credential
-                                    ).setApplicationName("QueM").build()
-                                    GoogleDriveGateway(drive)
-                                }
+                                    contentResolver = context.contentResolver,
+                                    gatewayFactory  = buildUploadGatewayFactory(context, accountEmail)
+                                )
+                            } else {
+                                viewModel.setShareError("Sign in to Google Drive to attach files")
                             }
                         }
                     }
                 },
                 onRetryUpload = { attachmentId ->
-                    val connectedState = driveConnectionState as? DriveConnectionState.Connected
-                    val accountEmail = connectedState?.account?.email
+                    val accountEmail = driveConnectionState.accountEmail()
                     if (accountEmail != null) {
                         viewModel.retryFileUpload(
                             attachmentId    = attachmentId,
-                            contentResolver = context.contentResolver
-                        ) {
-                            val credential = GoogleAccountCredential
-                                .usingOAuth2(context, listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE))
-                                .setSelectedAccountName(accountEmail)
-                            val drive = Drive.Builder(
-                                NetHttpTransport(),
-                                GsonFactory.getDefaultInstance(),
-                                credential
-                            ).setApplicationName("QueM").build()
-                            GoogleDriveGateway(drive)
-                        }
+                            contentResolver = context.contentResolver,
+                            gatewayFactory  = buildUploadGatewayFactory(context, accountEmail)
+                        )
+                    } else {
+                        viewModel.setShareError("Sign in to Google Drive to attach files")
                     }
                 }
             )
         }
     }
+}
+
+private fun buildUploadGatewayFactory(
+    context: android.content.Context,
+    accountEmail: String
+): () -> com.quem.drive.DriveFileUploadGateway = {
+    val credential = GoogleAccountCredential
+        .usingOAuth2(context, listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE))
+        .setSelectedAccountName(accountEmail)
+    val drive = Drive.Builder(
+        NetHttpTransport(),
+        GsonFactory.getDefaultInstance(),
+        credential
+    ).setApplicationName("QueM").build()
+    GoogleDriveGateway(drive)
 }
 
 private fun DriveConnectionState.accountEmail(): String? =
