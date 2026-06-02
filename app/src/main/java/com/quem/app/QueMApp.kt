@@ -48,6 +48,7 @@ fun QueMApp(
     val archiveQuery by viewModel.archiveQuery.collectAsStateWithLifecycle()
     val archiveResults by viewModel.archiveResults.collectAsStateWithLifecycle()
     val isShowingShareDialog by viewModel.isShowingShareDialog.collectAsStateWithLifecycle()
+    val isSharingInFlight    by viewModel.isSharingInFlight.collectAsStateWithLifecycle()
     val shareError           by viewModel.shareError.collectAsStateWithLifecycle()
 
     when (screen) {
@@ -116,6 +117,7 @@ fun QueMApp(
                 onDeleteHistoryEntry = viewModel::deleteHistoryEntry,
                 sharedWith           = item.sharedWith,
                 isShowingShareDialog = isShowingShareDialog,
+                isSharingInFlight    = isSharingInFlight,
                 shareError           = shareError,
                 onShare              = viewModel::showShareDialog,
                 onShareDialogDismiss = viewModel::closeShareDialog,
@@ -125,15 +127,18 @@ fun QueMApp(
                     if (accountEmail == null) {
                         viewModel.setShareError("Sign in to Google Drive to share items")
                     } else {
-                        val credential = GoogleAccountCredential
-                            .usingOAuth2(context, listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE))
-                            .setSelectedAccountName(accountEmail)
-                        val drive = Drive.Builder(
-                            NetHttpTransport(),
-                            GsonFactory.getDefaultInstance(),
-                            credential
-                        ).setApplicationName("QueM").build()
-                        viewModel.shareItem(email, GoogleDriveShareGateway(drive))
+                        // Gateway factory — called on Dispatchers.IO inside viewModel.shareItem
+                        viewModel.shareItem(email) {
+                            val credential = GoogleAccountCredential
+                                .usingOAuth2(context, listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE))
+                                .setSelectedAccountName(accountEmail)
+                            val drive = Drive.Builder(
+                                NetHttpTransport(),
+                                GsonFactory.getDefaultInstance(),
+                                credential
+                            ).setApplicationName("QueM").build()
+                            GoogleDriveShareGateway(drive)
+                        }
                     }
                 },
                 onBack = viewModel::backToList

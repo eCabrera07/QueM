@@ -66,6 +66,7 @@ fun ItemDetailScreen(
     onDeleteHistoryEntry: (historyEntryId: String) -> Unit = {},
     sharedWith: List<String> = emptyList(),
     isShowingShareDialog: Boolean = false,
+    isSharingInFlight: Boolean = false,
     shareError: String? = null,
     onShare: () -> Unit = {},
     onShareConfirm: (email: String) -> Unit = {},
@@ -215,7 +216,7 @@ fun ItemDetailScreen(
     }
 
     if (isShowingShareDialog) {
-        var shareEmail by rememberSaveable { mutableStateOf("") }
+        var shareEmail by remember { mutableStateOf("") }  // transient — reset on each open
         AlertDialog(
             onDismissRequest = onShareDialogDismiss,
             title = { Text("Share item") },
@@ -240,8 +241,8 @@ fun ItemDetailScreen(
             confirmButton = {
                 Button(
                     onClick = { onShareConfirm(shareEmail.trim()) },
-                    enabled = shareEmail.contains("@")
-                ) { Text("Share") }
+                    enabled = shareEmail.contains("@") && !isSharingInFlight
+                ) { Text(if (isSharingInFlight) "Sharing…" else "Share") }
             },
             dismissButton = {
                 TextButton(onClick = onShareDialogDismiss) { Text("Cancel") }

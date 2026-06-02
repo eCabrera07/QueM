@@ -32,7 +32,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 enum class SyncIndicator { PENDING, SYNCING, ERROR }
@@ -72,7 +74,8 @@ class QueueViewModel(
     private val repository: QueueRepository,
     private val driveConnectionRepository: DriveConnectionRepository = DisconnectedDriveConnectionRepository(),
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
-    private val clock: Clock = SystemClock()
+    private val clock: Clock = SystemClock(),
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
     val selectedStatus: StateFlow<QueueStatus> =
         savedStateHandle.getStateFlow(KEY_SELECTED_STATUS, QueueStatus.QUEUED)
@@ -374,13 +377,14 @@ class QueueViewModel(
         _shareError.value = message
     }
 
-    fun shareItem(recipientEmail: String, shareGateway: DriveShareGateway) {
+    fun shareItem(recipientEmail: String, gatewayFactory: () -> DriveShareGateway) {
         if (_isSharingInFlight.value) return   // guard against double-tap
         val id = selectedItemId.value ?: return
         viewModelScope.launch {
             _isSharingInFlight.value = true
             try {
-                val success = repository.shareItem(id, recipientEmail, shareGateway)
+                val gateway = withContext(ioDispatcher) { gatewayFactory() }
+                val success = repository.shareItem(id, recipientEmail, gateway)
                 if (success) {
                     savedStateHandle[KEY_IS_SHOWING_SHARE_DIALOG] = false
                     _shareError.value = null

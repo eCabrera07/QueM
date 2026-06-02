@@ -754,14 +754,14 @@ class QueueViewModelTest {
     fun shareItemClosesDialogAndClearsErrorOnSuccess() = runTest {
         val repository = FakeQueueRepository()
         repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
-        val viewModel = QueueViewModel(repository)
+        val viewModel = QueueViewModel(repository, ioDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler))
         collectSelectedItem(viewModel)
 
         viewModel.selectItem("item-1")
         viewModel.showShareDialog()
         advanceUntilIdle()
 
-        viewModel.shareItem("alice@example.com", FakeDriveShareGateway())
+        viewModel.shareItem("alice@example.com") { FakeDriveShareGateway() }
         advanceUntilIdle()
 
         assertFalse(viewModel.isShowingShareDialog.value)
@@ -774,14 +774,14 @@ class QueueViewModelTest {
     fun shareItemKeepsDialogOpenAndSetsErrorOnFailure() = runTest {
         val repository = FakeQueueRepository(shareReturns = false)
         repository.createItem(title = "Read contract", description = null, priority = null, dueDate = null)
-        val viewModel = QueueViewModel(repository)
+        val viewModel = QueueViewModel(repository, ioDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler))
         collectSelectedItem(viewModel)
 
         viewModel.selectItem("item-1")
         viewModel.showShareDialog()
         advanceUntilIdle()
 
-        viewModel.shareItem("alice@example.com", FakeDriveShareGateway())
+        viewModel.shareItem("alice@example.com") { FakeDriveShareGateway() }
         advanceUntilIdle()
 
         assertTrue(viewModel.isShowingShareDialog.value)
