@@ -787,6 +787,121 @@ class RoomQueueRepositoryTest {
         assertFalse(result)
         assertNull(repository.observeItem("item-1").first()?.sharedDriveFileId)
     }
+
+    @Test
+    fun attachLocalFileCreatesLocalFileAttachmentWithPendingUploadState() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1", "attachment-1")
+        val repository = RoomQueueRepository(
+            dao        = dao,
+            clock      = FixedClock(Instant.parse("2026-06-02T10:00:00Z")),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Report", description = null, priority = null, dueDate = null)
+
+        val attachmentId = repository.attachLocalFile(
+            queueItemId = "item-1",
+            uri         = "content://media/1234",
+            displayName = "photo.jpg",
+            mimeType    = "image/jpeg"
+        )
+
+        assertEquals("attachment-1", attachmentId)
+        val entity = dao.observeAttachment("attachment-1").first()
+        requireNotNull(entity)
+        assertEquals("LOCAL_FILE", entity.type)
+        assertEquals("PENDING_UPLOAD", entity.syncState)
+        assertEquals("content://media/1234", entity.url)
+        assertEquals("photo.jpg", entity.displayName)
+        assertNull(entity.driveFileId)
+    }
+
+    @Test
+    fun uploadPendingFileOnSuccessTransitionsToDriveFileAndClearsUri() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1", "attachment-1")
+        val repository = RoomQueueRepository(
+            dao        = dao,
+            clock      = FixedClock(Instant.parse("2026-06-02T10:00:00Z")),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Report", description = null, priority = null, dueDate = null)
+        repository.attachLocalFile("item-1", "content://media/1234", "photo.jpg", "image/jpeg")
+
+        val gateway = FakeDriveFileUploadGateway()
+        val result  = repository.uploadPendingFile(
+            attachmentId    = "attachment-1",
+            contentResolver = fakeContentResolver,
+            gateway         = gateway
+        )
+
+        assertTrue(result)
+        assertEquals("item-1", gateway.capturedItemId)
+        assertEquals("photo.jpg", gateway.capturedFileName)
+        val entity = dao.observeAttachment("attachment-1").first()
+        requireNotNull(entity)
+        assertEquals("DRIVE_FILE", entity.type)
+        assertEquals("SYNCED", entity.syncState)
+        assertEquals("uploaded-drive-file-id", entity.driveFileId)
+        assertNull(entity.url)
+    }
+
+    @Test
+    fun uploadPendingFileOnFailureTransitionsToUploadFailed() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1", "attachment-1")
+        val repository = RoomQueueRepository(
+            dao        = dao,
+            clock      = FixedClock(Instant.parse("2026-06-02T10:00:00Z")),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Report", description = null, priority = null, dueDate = null)
+        repository.attachLocalFile("item-1", "content://media/1234", "photo.jpg", "image/jpeg")
+
+        val gateway = FakeDriveFileUploadGateway().apply { shouldThrow = RuntimeException("network error") }
+        val result  = repository.uploadPendingFile(
+            attachmentId    = "attachment-1",
+            contentResolver = fakeContentResolver,
+            gateway         = gateway
+        )
+
+        assertFalse(result)
+        val entity = dao.observeAttachment("attachment-1").first()
+        requireNotNull(entity)
+        assertEquals("UPLOAD_FAILED", entity.syncState)
+        assertEquals("LOCAL_FILE", entity.type)
+        assertEquals("content://media/1234", entity.url)   // preserved for retry
+    }
+
+    @Test
+    fun retryFileUploadSucceedsAfterPreviousFailure() = runTest {
+        val dao = FakeQueueDao()
+        val ids = mutableListOf("item-1", "history-1", "attachment-1")
+        val repository = RoomQueueRepository(
+            dao        = dao,
+            clock      = FixedClock(Instant.parse("2026-06-02T10:00:00Z")),
+            idProvider = { ids.removeFirst() }
+        )
+        repository.createItem(title = "Report", description = null, priority = null, dueDate = null)
+        repository.attachLocalFile("item-1", "content://media/1234", "photo.jpg", "image/jpeg")
+        // Simulate a failed first attempt
+        repository.uploadPendingFile(
+            "attachment-1",
+            fakeContentResolver,
+            FakeDriveFileUploadGateway().apply { shouldThrow = RuntimeException("first attempt") }
+        )
+        assertEquals("UPLOAD_FAILED", dao.observeAttachment("attachment-1").first()?.syncState)
+
+        // Retry succeeds
+        val result = repository.retryFileUpload(
+            attachmentId    = "attachment-1",
+            contentResolver = fakeContentResolver,
+            gateway         = FakeDriveFileUploadGateway()
+        )
+
+        assertTrue(result)
+        assertEquals("DRIVE_FILE", dao.observeAttachment("attachment-1").first()?.type)
+    }
 }
 
 private fun queueItemEntity(
@@ -945,6 +1060,27 @@ private open class FakeQueueDao : QueueDao {
         historyEntities.value = historyEntities.value.filterNot { it.id == id }
     }
 
+    override fun observeAttachment(id: String): Flow<AttachmentEntity?> =
+        attachmentEntities.map { list -> list.firstOrNull { it.id == id } }
+
+    override suspend fun updateAttachmentAfterUpload(
+        id: String,
+        driveFileId: String,
+        updatedAt: java.time.Instant
+    ) {
+        attachmentEntities.value = attachmentEntities.value.map { a ->
+            if (a.id == id) a.copy(type = "DRIVE_FILE", driveFileId = driveFileId, syncState = "SYNCED", url = null, updatedAt = updatedAt)
+            else a
+        }
+    }
+
+    override suspend fun updateAttachmentUploadFailed(id: String, updatedAt: java.time.Instant) {
+        attachmentEntities.value = attachmentEntities.value.map { a ->
+            if (a.id == id) a.copy(syncState = "UPLOAD_FAILED", updatedAt = updatedAt)
+            else a
+        }
+    }
+
     override suspend fun updateShareInfo(
         id: String,
         sharedDriveFileId: String,
@@ -1011,3 +1147,24 @@ private class FakeShareGateway : DriveShareGateway {
         grantedEmail = recipientEmail
     }
 }
+
+private class FakeDriveFileUploadGateway : com.quem.drive.DriveFileUploadGateway {
+    var capturedItemId: String? = null
+    var capturedFileName: String? = null
+    var shouldThrow: Exception? = null
+
+    override suspend fun uploadLocalFile(
+        itemId: String,
+        fileName: String,
+        mimeType: String,
+        contentResolver: android.content.ContentResolver,
+        uriString: String
+    ): String {
+        shouldThrow?.let { throw it }
+        capturedItemId   = itemId
+        capturedFileName = fileName
+        return "uploaded-drive-file-id"
+    }
+}
+
+private val fakeContentResolver = object : android.content.ContentResolver(null) {}

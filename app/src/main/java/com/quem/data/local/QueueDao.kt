@@ -119,6 +119,28 @@ interface QueueDao {
         updatedAt: java.time.Instant
     )
 
+    @Query("SELECT * FROM attachments WHERE id = :id LIMIT 1")
+    fun observeAttachment(id: String): Flow<AttachmentEntity?>
+
+    @Query("""
+        UPDATE attachments
+        SET type        = 'DRIVE_FILE',
+            driveFileId = :driveFileId,
+            syncState   = 'SYNCED',
+            url         = NULL,
+            updatedAt   = :updatedAt
+        WHERE id = :id
+    """)
+    suspend fun updateAttachmentAfterUpload(id: String, driveFileId: String, updatedAt: java.time.Instant)
+
+    @Query("""
+        UPDATE attachments
+        SET syncState = 'UPLOAD_FAILED',
+            updatedAt = :updatedAt
+        WHERE id = :id
+    """)
+    suspend fun updateAttachmentUploadFailed(id: String, updatedAt: java.time.Instant)
+
     @Query("SELECT * FROM attachments WHERE queueItemId = :queueItemId ORDER BY createdAt DESC, id ASC")
     fun observeAttachments(queueItemId: String): Flow<List<AttachmentEntity>>
 

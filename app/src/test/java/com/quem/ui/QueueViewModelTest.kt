@@ -971,6 +971,25 @@ private class FakeQueueRepository(private val shareReturns: Boolean = true) : Qu
         return shareReturns
     }
 
+    override suspend fun attachLocalFile(
+        queueItemId: String,
+        uri: String,
+        displayName: String,
+        mimeType: String?
+    ): String = error("not implemented in FakeQueueRepository")
+
+    override suspend fun uploadPendingFile(
+        attachmentId: String,
+        contentResolver: android.content.ContentResolver,
+        gateway: com.quem.drive.DriveFileUploadGateway
+    ): Boolean = error("not implemented in FakeQueueRepository")
+
+    override suspend fun retryFileUpload(
+        attachmentId: String,
+        contentResolver: android.content.ContentResolver,
+        gateway: com.quem.drive.DriveFileUploadGateway
+    ): Boolean = error("not implemented in FakeQueueRepository")
+
     fun emitHistory(vararg entries: HistoryEntry) {
         historyEntries.value = entries.toList()
     }

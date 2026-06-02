@@ -1,11 +1,10 @@
 package com.quem.drive
 
 import android.content.ContentResolver
-import android.net.Uri
 
 interface DriveFileUploadGateway {
     /**
-     * Ensures `QueM/files/{itemId}/` exists in Drive and uploads the file from [uri].
+     * Ensures `QueM/files/{itemId}/` exists in Drive and uploads the file from [uriString].
      * Streams the file using [contentResolver] — never loads it fully into memory.
      * Returns the Drive file ID of the uploaded file.
      */
@@ -14,6 +13,6 @@ interface DriveFileUploadGateway {
         fileName: String,
         mimeType: String,
         contentResolver: ContentResolver,
-        uri: Uri
+        uriString: String
     ): String
 }

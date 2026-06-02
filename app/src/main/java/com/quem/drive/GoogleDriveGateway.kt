@@ -98,14 +98,15 @@ class GoogleDriveGateway(
         fileName: String,
         mimeType: String,
         contentResolver: ContentResolver,
-        uri: Uri
+        uriString: String
     ): String = withContext(ioDispatcher) {
         val quemFolderId  = ensureFolder("QueM")
         val filesFolderId = ensureSubfolder(quemFolderId, "files")
         val itemFolderId  = ensureSubfolder(filesFolderId, itemId)
 
+        val uri = Uri.parse(uriString)
         val inputStream = contentResolver.openInputStream(uri)
-            ?: throw IllegalStateException("Cannot open stream for $uri")
+            ?: throw IllegalStateException("Cannot open stream for $uriString")
 
         val mediaContent = InputStreamContent(mimeType, inputStream)
 

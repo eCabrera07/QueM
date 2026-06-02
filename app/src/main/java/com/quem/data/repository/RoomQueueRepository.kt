@@ -14,7 +14,10 @@ import com.quem.data.sync.MetadataExporter
 import com.quem.data.sync.MetadataSerializer
 import com.quem.data.sync.toExportable
 import com.quem.data.sync.toMetadata
+import android.content.ContentResolver
+import com.quem.drive.DriveFileUploadGateway
 import com.quem.drive.DriveShareGateway
+import com.quem.data.local.AttachmentEntity
 import com.quem.data.local.HistoryEntryEntity
 import com.quem.data.local.QueueDao
 import com.quem.data.local.toDomain
@@ -281,6 +284,70 @@ class RoomQueueRepository(
         runCatching { Log.w(TAG, "shareItem failed", e) }
         false
     }
+
+    override suspend fun attachLocalFile(
+        queueItemId: String,
+        uri: String,
+        displayName: String,
+        mimeType: String?
+    ): String {
+        val trimmedName = displayName.trim()
+        if (trimmedName.isBlank()) return ""
+        if (dao.observeItem(queueItemId).first() == null) return ""
+
+        val now = clock.now()
+        val attachmentId = idProvider()
+        dao.upsertAttachment(
+            AttachmentEntity(
+                id          = attachmentId,
+                queueItemId = queueItemId,
+                type        = AttachmentType.LOCAL_FILE.name,
+                displayName = trimmedName,
+                textContent = null,
+                url         = uri,
+                driveFileId = null,
+                mimeType    = mimeType,
+                createdAt   = now,
+                updatedAt   = now,
+                syncState   = SyncState.PENDING_UPLOAD.name
+            )
+        )
+        return attachmentId
+    }
+
+    override suspend fun uploadPendingFile(
+        attachmentId: String,
+        contentResolver: ContentResolver,
+        gateway: DriveFileUploadGateway
+    ): Boolean = runCatching {
+        val entity    = dao.observeAttachment(attachmentId).first() ?: return@runCatching false
+        val uriString = entity.url ?: return@runCatching false
+
+        val driveFileId = gateway.uploadLocalFile(
+            itemId          = entity.queueItemId,
+            fileName        = entity.displayName,
+            mimeType        = entity.mimeType ?: "application/octet-stream",
+            contentResolver = contentResolver,
+            uriString       = uriString
+        )
+
+        dao.updateAttachmentAfterUpload(
+            id          = attachmentId,
+            driveFileId = driveFileId,
+            updatedAt   = clock.now()
+        )
+        true
+    }.getOrElse { e ->
+        runCatching { Log.w(TAG, "uploadPendingFile failed", e) }
+        runCatching { dao.updateAttachmentUploadFailed(attachmentId, clock.now()) }
+        false
+    }
+
+    override suspend fun retryFileUpload(
+        attachmentId: String,
+        contentResolver: ContentResolver,
+        gateway: DriveFileUploadGateway
+    ): Boolean = uploadPendingFile(attachmentId, contentResolver, gateway)
 
     private fun logHistoryWriteFailure(error: Throwable) {
         runCatching {

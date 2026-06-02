@@ -221,6 +221,9 @@ private class FakeCoordinatorDao : QueueDao {
     override suspend fun updateShareInfo(id: String, sharedDriveFileId: String, sharedWith: List<String>, updatedAt: java.time.Instant) = throw UnsupportedOperationException()
     override fun observeAttachments(id: String): Flow<List<AttachmentEntity>> = throw UnsupportedOperationException()
     override fun observeHistory(id: String): Flow<List<HistoryEntryEntity>> = throw UnsupportedOperationException()
+    override fun observeAttachment(id: String): Flow<AttachmentEntity?> = throw UnsupportedOperationException()
+    override suspend fun updateAttachmentAfterUpload(id: String, driveFileId: String, updatedAt: java.time.Instant) = throw UnsupportedOperationException()
+    override suspend fun updateAttachmentUploadFailed(id: String, updatedAt: java.time.Instant) = throw UnsupportedOperationException()
 }
 
 // ---- Builders ----
