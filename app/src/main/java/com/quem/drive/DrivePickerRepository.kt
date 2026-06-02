@@ -89,7 +89,7 @@ class DrivePickerRepository(private val contentResolver: ContentResolver) {
     private fun Uri.toLocalFileSelection(): LocalFileSelection? {
         val (displayName, mimeType) = queryMetadata()
         return LocalFileSelection(
-            uri         = this,
+            uriString   = this.toString(),
             displayName = displayName ?: lastPathSegment ?: "file",
             mimeType    = mimeType
         )

@@ -1,9 +1,7 @@
 package com.quem.drive
 
-import android.net.Uri
-
 data class LocalFileSelection(
-    val uri: Uri,
+    val uriString: String,    // content URI as string — consistent with DriveFileUploadGateway.uriString
     val displayName: String,
     val mimeType: String?
 )
