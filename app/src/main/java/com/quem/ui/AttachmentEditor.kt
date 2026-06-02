@@ -16,6 +16,7 @@ fun AttachmentEditor(
     onAddLink: () -> Unit,
     onAttachDriveFile: () -> Unit,
     onAttachDriveFolder: () -> Unit,
+    onAttachLocalFile: () -> Unit = {},
     modifier: Modifier = Modifier,
     showDriveActions: Boolean = true
 ) {
@@ -23,11 +24,12 @@ fun AttachmentEditor(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        AttachmentButton(text = "Text", onClick = onAddText)
-        AttachmentButton(text = "Link", onClick = onAddLink)
+        AttachmentButton(text = "Text",       onClick = onAddText)
+        AttachmentButton(text = "Link",       onClick = onAddLink)
         if (showDriveActions) {
-            AttachmentButton(text = "Drive file", onClick = onAttachDriveFile)
+            AttachmentButton(text = "Drive file",   onClick = onAttachDriveFile)
             AttachmentButton(text = "Drive folder", onClick = onAttachDriveFolder)
+            AttachmentButton(text = "Local file",   onClick = onAttachLocalFile)
         }
     }
 }

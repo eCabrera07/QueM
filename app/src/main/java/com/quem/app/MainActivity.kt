@@ -42,9 +42,15 @@ class MainActivity : ComponentActivity() {
         ) { uri: Uri? ->
             dependencies.drivePickerRepository.handleFolderResult(uri)
         }
+        val localFileLauncher = registerForActivityResult(
+            ActivityResultContracts.OpenDocument()
+        ) { uri: Uri? ->
+            dependencies.drivePickerRepository.handleLocalFileResult(uri)
+        }
         val drivePickerCoordinator = SafDrivePickerCoordinator(
-            fileLauncher = filePickerLauncher,
-            folderLauncher = folderPickerLauncher,
+            fileLauncher      = filePickerLauncher,
+            folderLauncher    = folderPickerLauncher,
+            localFileLauncher = localFileLauncher,
             drivePickerRepository = dependencies.drivePickerRepository
         )
 

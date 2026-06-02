@@ -3,11 +3,14 @@ package com.quem.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import com.quem.drive.DriveUrlExtractor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -18,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
@@ -37,7 +41,9 @@ fun EditItemScreen(
     onAttachDriveFile: (title: String, driveFileId: String, mimeType: String?) -> Unit = { _, _, _ -> },
     onAttachDriveFolder: (title: String, driveFolderId: String) -> Unit = { _, _ -> },
     onDeleteAttachment: (attachmentId: String) -> Unit = {},
-    onRenameAttachment: (attachmentId: String, newTitle: String) -> Unit = { _, _ -> }
+    onRenameAttachment: (attachmentId: String, newTitle: String) -> Unit = { _, _ -> },
+    onPickLocalFile: () -> Unit = {},
+    onRetryUpload: (attachmentId: String) -> Unit = {}
 ) {
     var title by rememberSaveable { mutableStateOf(initialTitle) }
     var description by rememberSaveable { mutableStateOf(initialDescription) }
@@ -125,26 +131,74 @@ fun EditItemScreen(
             }
 
             items(attachments) { attachment ->
-                val url = when {
-                    attachment.isLink -> attachment.url?.let { if (it.startsWith("http")) it else "https://$it" }
-                    attachment.isDriveFile || attachment.isDriveFolder ->
-                        attachment.driveFileId?.let { "https://drive.google.com/open?id=$it" }
-                    else -> null
-                }
-                DeletableRow(
-                    onDelete = { onDeleteAttachment(attachment.id) },
-                    onRename = { newTitle -> onRenameAttachment(attachment.id, newTitle) },
-                    currentName = attachment.displayName
-                ) {
-                    if (url != null) {
-                        Text(
-                            text = attachment.displayName,
-                            modifier = Modifier.fillMaxWidth().clickable { uriHandler.openUri(url) }.padding(vertical = 4.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    } else {
-                        Text(text = attachment.displayName, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), style = MaterialTheme.typography.bodyMedium)
+                when (attachment.uploadState) {
+                    UploadState.IN_PROGRESS -> {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = attachment.displayName,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    }
+                    UploadState.FAILED -> {
+                        DeletableRow(
+                            onDelete = { onDeleteAttachment(attachment.id) },
+                            onRename = { newTitle -> onRenameAttachment(attachment.id, newTitle) },
+                            currentName = attachment.displayName,
+                            extraMenuItems = listOf("Retry upload" to { onRetryUpload(attachment.id) })
+                        ) {
+                            Text(
+                                text = attachment.displayName,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    UploadState.NONE -> {
+                        val url = when {
+                            attachment.isLink -> attachment.url?.let {
+                                if (it.startsWith("http")) it else "https://$it"
+                            }
+                            attachment.isDriveFile || attachment.isDriveFolder ->
+                                attachment.driveFileId?.let { "https://drive.google.com/open?id=$it" }
+                            else -> null
+                        }
+                        DeletableRow(
+                            onDelete = { onDeleteAttachment(attachment.id) },
+                            onRename = { newTitle -> onRenameAttachment(attachment.id, newTitle) },
+                            currentName = attachment.displayName
+                        ) {
+                            if (url != null) {
+                                Text(
+                                    text = attachment.displayName,
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clickable { uriHandler.openUri(url) }
+                                        .padding(vertical = 4.dp),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                Text(
+                                    text = attachment.displayName,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -156,6 +210,7 @@ fun EditItemScreen(
                         onAddLink = { openForm("link") },
                         onAttachDriveFile = { openForm("drive_file") },
                         onAttachDriveFolder = { openForm("drive_folder") },
+                        onAttachLocalFile = onPickLocalFile,
                         showDriveActions = true
                     )
                 } else {

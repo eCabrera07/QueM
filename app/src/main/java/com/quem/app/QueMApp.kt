@@ -16,6 +16,7 @@ import com.quem.drive.DriveConnectionRepository
 import com.quem.drive.DriveConnectionState
 import com.quem.drive.DrivePickerCoordinator
 import com.quem.drive.GoogleDriveAuthorizationCoordinator
+import com.quem.drive.GoogleDriveGateway
 import com.quem.drive.GoogleDriveShareGateway
 import com.quem.drive.NoOpDrivePickerCoordinator
 import com.quem.ui.ArchiveSearchScreen
@@ -164,7 +165,53 @@ fun QueMApp(
                     viewModel.addDriveFolderAttachment(title, id)
                 },
                 onDeleteAttachment = viewModel::deleteAttachment,
-                onRenameAttachment = viewModel::updateAttachmentTitle
+                onRenameAttachment = viewModel::updateAttachmentTitle,
+                onPickLocalFile = {
+                    drivePickerCoordinator.pickLocalFile { selection ->
+                        if (selection != null) {
+                            val connectedState = driveConnectionState as? DriveConnectionState.Connected
+                            val accountEmail = connectedState?.account?.email
+                            if (accountEmail != null) {
+                                viewModel.attachAndUploadLocalFile(
+                                    uri             = selection.uriString,
+                                    displayName     = selection.displayName,
+                                    mimeType        = selection.mimeType,
+                                    contentResolver = context.contentResolver
+                                ) {
+                                    val credential = GoogleAccountCredential
+                                        .usingOAuth2(context, listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE))
+                                        .setSelectedAccountName(accountEmail)
+                                    val drive = Drive.Builder(
+                                        NetHttpTransport(),
+                                        GsonFactory.getDefaultInstance(),
+                                        credential
+                                    ).setApplicationName("QueM").build()
+                                    GoogleDriveGateway(drive)
+                                }
+                            }
+                        }
+                    }
+                },
+                onRetryUpload = { attachmentId ->
+                    val connectedState = driveConnectionState as? DriveConnectionState.Connected
+                    val accountEmail = connectedState?.account?.email
+                    if (accountEmail != null) {
+                        viewModel.retryFileUpload(
+                            attachmentId    = attachmentId,
+                            contentResolver = context.contentResolver
+                        ) {
+                            val credential = GoogleAccountCredential
+                                .usingOAuth2(context, listOf(GoogleDriveAuthorizationCoordinator.DRIVE_FILE_SCOPE))
+                                .setSelectedAccountName(accountEmail)
+                            val drive = Drive.Builder(
+                                NetHttpTransport(),
+                                GsonFactory.getDefaultInstance(),
+                                credential
+                            ).setApplicationName("QueM").build()
+                            GoogleDriveGateway(drive)
+                        }
+                    }
+                }
             )
         }
     }

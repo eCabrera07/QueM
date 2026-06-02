@@ -425,6 +425,7 @@ internal fun DeletableRow(
     onDelete: () -> Unit,
     onRename: ((String) -> Unit)? = null,
     currentName: String = "",
+    extraMenuItems: List<Pair<String, () -> Unit>> = emptyList(),
     content: @Composable () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -445,6 +446,12 @@ internal fun DeletableRow(
                     DropdownMenuItem(
                         text = { Text("Rename") },
                         onClick = { menuExpanded = false; renameValue = currentName; showRenameDialog = true }
+                    )
+                }
+                extraMenuItems.forEach { (label, action) ->
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        onClick = { menuExpanded = false; action() }
                     )
                 }
                 DropdownMenuItem(
