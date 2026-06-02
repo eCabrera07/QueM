@@ -627,7 +627,11 @@ private fun Attachment.toAttachmentUi() = AttachmentUi(
     isLink        = type == AttachmentType.LINK,
     isDriveFile   = type == AttachmentType.DRIVE_FILE,
     isDriveFolder = type == AttachmentType.DRIVE_FOLDER,
-    uploadState   = if (syncState == SyncState.UPLOAD_FAILED) UploadState.FAILED else UploadState.NONE
+    uploadState   = when (syncState) {
+        SyncState.UPLOAD_FAILED  -> UploadState.FAILED
+        SyncState.PENDING_UPLOAD -> UploadState.IN_PROGRESS  // re-enqueued on next sync attempt
+        else                     -> UploadState.NONE
+    }
 )
 
 private fun SyncState.toIndicator(): SyncIndicator? = when (this) {

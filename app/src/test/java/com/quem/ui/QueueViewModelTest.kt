@@ -855,7 +855,7 @@ class QueueViewModelTest {
         ) { FakeDriveFileUploadGateway() }
         advanceUntilIdle()
 
-        assertTrue(repository.uploadPendingFileReturns)
+        assertTrue(repository.retryFileUploadCalled)
     }
 
     private fun TestScope.collectSelectedItem(viewModel: QueueViewModel) {
@@ -1046,6 +1046,7 @@ private class FakeQueueRepository(private val shareReturns: Boolean = true) : Qu
     var lastLocalFileDisplayName: String? = null
     private val localFileAttachmentId = "local-attachment-1"
     var uploadPendingFileReturns: Boolean = true
+    var retryFileUploadCalled: Boolean = false
 
     override suspend fun attachLocalFile(
         queueItemId: String,
@@ -1069,7 +1070,10 @@ private class FakeQueueRepository(private val shareReturns: Boolean = true) : Qu
         attachmentId: String,
         contentResolver: android.content.ContentResolver,
         gateway: com.quem.drive.DriveFileUploadGateway
-    ): Boolean = uploadPendingFileReturns
+    ): Boolean {
+        retryFileUploadCalled = true
+        return uploadPendingFileReturns
+    }
 
     fun emitHistory(vararg entries: HistoryEntry) {
         historyEntries.value = entries.toList()
