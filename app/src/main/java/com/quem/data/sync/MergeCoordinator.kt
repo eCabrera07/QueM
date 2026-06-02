@@ -16,7 +16,16 @@ class MergeCoordinator(private val dao: QueueDao) {
             val entity = runCatching { remote.toEntity() }.getOrNull() ?: continue
             val local = localById[entity.id]
             if (local == null || entity.updatedAt > local.updatedAt) {
-                dao.upsertItem(entity)
+                // Preserve local share state — share fields are not in Drive metadata until Phase 2
+                val merged = if (local != null) {
+                    entity.copy(
+                        sharedDriveFileId = local.sharedDriveFileId,
+                        sharedWith        = local.sharedWith
+                    )
+                } else {
+                    entity
+                }
+                dao.upsertItem(merged)
             }
         }
     }

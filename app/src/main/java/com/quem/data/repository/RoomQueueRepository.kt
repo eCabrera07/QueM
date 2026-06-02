@@ -277,7 +277,10 @@ class RoomQueueRepository(
         shareGateway.grantWriterAccess(fileId, recipientEmail)
         dao.updateShareInfo(id = itemId, sharedDriveFileId = fileId, sharedWith = listOf(recipientEmail), updatedAt = clock.now())
         true
-    }.getOrElse { false }
+    }.getOrElse { e ->
+        runCatching { Log.w(TAG, "shareItem failed", e) }
+        false
+    }
 
     private fun logHistoryWriteFailure(error: Throwable) {
         runCatching {
