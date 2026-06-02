@@ -1,6 +1,9 @@
 package com.quem.drive
 
+import android.content.ContentResolver
+import android.net.Uri
 import com.google.api.client.http.ByteArrayContent
+import com.google.api.client.http.InputStreamContent
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.File
 import com.quem.data.sync.DriveGateway
@@ -13,7 +16,7 @@ import kotlinx.coroutines.withContext
 class GoogleDriveGateway(
     private val drive: Drive,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
-) : DriveGateway {
+) : DriveGateway, DriveFileUploadGateway {
     override suspend fun uploadTextFile(folderName: String, fileName: String, content: String) = withContext(ioDispatcher) {
         val folderId = ensureFolder(folderName)
         val existingFile = findFile(folderId, fileName)
@@ -90,6 +93,60 @@ class GoogleDriveGateway(
         .orEmpty()
         .firstOrNull()
 
+    override suspend fun uploadLocalFile(
+        itemId: String,
+        fileName: String,
+        mimeType: String,
+        contentResolver: ContentResolver,
+        uri: Uri
+    ): String = withContext(ioDispatcher) {
+        val quemFolderId  = ensureFolder("QueM")
+        val filesFolderId = ensureSubfolder(quemFolderId, "files")
+        val itemFolderId  = ensureSubfolder(filesFolderId, itemId)
+
+        val inputStream = contentResolver.openInputStream(uri)
+            ?: throw IllegalStateException("Cannot open stream for $uri")
+
+        val mediaContent = InputStreamContent(mimeType, inputStream)
+
+        val metadata = File()
+            .setName(fileName)
+            .setParents(listOf(itemFolderId))
+            .setAppProperties(mapOf(APP_PROPERTY_ROLE to GoogleDriveQueries.APP_PROPERTY_ITEM_FILES_FOLDER))
+
+        drive.files()
+            .create(metadata, mediaContent)
+            .setFields("id")
+            .execute()
+            .id
+    }
+
+    private fun ensureSubfolder(parentId: String, folderName: String): String {
+        val existing = findSubfolder(parentId, folderName)
+        if (existing != null) return existing.id
+        return drive.files()
+            .create(
+                File()
+                    .setName(folderName)
+                    .setMimeType(FOLDER_MIME_TYPE)
+                    .setParents(listOf(parentId))
+                    .setAppProperties(mapOf(APP_PROPERTY_ROLE to GoogleDriveQueries.APP_PROPERTY_ITEM_FILES_FOLDER))
+            )
+            .setFields("id")
+            .execute()
+            .id
+    }
+
+    private fun findSubfolder(parentId: String, folderName: String): File? = drive.files()
+        .list()
+        .setQ(GoogleDriveQueries.subfolderQuery(parentId, folderName))
+        .setSpaces("drive")
+        .setFields("files(id, name)")
+        .execute()
+        .files
+        .orEmpty()
+        .firstOrNull()
+
     private companion object {
         const val APPLICATION_JSON = "application/json"
         const val FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
@@ -121,6 +178,12 @@ object GoogleDriveQueries {
             appPropertyEquals(APP_PROPERTY_ROLE, APP_PROPERTY_SHARED_ITEM) +
             " and trashed = false"
 
+    internal fun subfolderQuery(parentId: String, folderName: String): String =
+        "mimeType = ${literal(FOLDER_MIME_TYPE)} and " +
+        "name = ${literal(folderName)} and " +
+        "${literal(parentId)} in parents and " +
+        "trashed = false"
+
     private fun appPropertyEquals(key: String, value: String): String =
         "appProperties has { key = ${literal(key)} and value = ${literal(value)} }"
 
@@ -141,4 +204,5 @@ object GoogleDriveQueries {
     private const val APP_PROPERTY_ROOT_FOLDER = "rootFolder"
     private const val APP_PROPERTY_METADATA_FILE = "metadataFile"
     internal const val APP_PROPERTY_SHARED_ITEM = "sharedItem"
+    internal const val APP_PROPERTY_ITEM_FILES_FOLDER = "itemFilesFolder"
 }
