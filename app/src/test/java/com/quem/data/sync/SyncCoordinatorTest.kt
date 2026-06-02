@@ -44,6 +44,27 @@ class SyncCoordinatorTest {
     }
 
     @Test
+    fun syncExcludesLocalFileAttachmentsFromSnapshot() = runTest {
+        val now = Instant.parse("2026-06-02T10:00:00Z")
+        val dao = FakeCoordinatorDao().apply {
+            items = listOf(queueItemEntity(id = "item-1", now = now))
+            attachments = listOf(
+                attachmentEntity(id = "synced-att", queueItemId = "item-1", now = now),       // TEXT — included
+                attachmentEntity(id = "local-att",  queueItemId = "item-1", now = now)         // LOCAL_FILE — excluded
+                    .copy(type = AttachmentType.LOCAL_FILE.name, syncState = SyncState.PENDING_UPLOAD.name)
+            )
+        }
+        val driveGateway = FakeCoordinatorDriveGateway()
+        val coordinator = SyncCoordinator(dao, SyncManager(driveGateway), FixedClock(now))
+
+        coordinator.sync()
+
+        val snapshot = MetadataSerializer.decode(driveGateway.uploadedContents.single())
+        assertEquals(1, snapshot.attachments.size)
+        assertEquals("synced-att", snapshot.attachments.single().id)
+    }
+
+    @Test
     fun syncMarksItemsAndAttachmentsSyncedAfterSuccessfulUpload() = runTest {
         val now = Instant.parse("2026-05-29T12:00:00Z")
         val dao = FakeCoordinatorDao()
