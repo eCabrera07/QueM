@@ -45,6 +45,14 @@ class MainActivity : ComponentActivity() {
         val localFileLauncher = registerForActivityResult(
             ActivityResultContracts.OpenDocument()
         ) { uri: Uri? ->
+            // Take persistent read permission so the URI is accessible for retry after process restart
+            if (uri != null) {
+                runCatching {
+                    contentResolver.takePersistableUriPermission(
+                        uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                }
+            }
             dependencies.drivePickerRepository.handleLocalFileResult(uri)
         }
         val drivePickerCoordinator = SafDrivePickerCoordinator(

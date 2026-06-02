@@ -313,6 +313,17 @@ class RoomQueueRepository(
                 syncState   = SyncState.PENDING_UPLOAD.name
             )
         )
+        runCatching {
+            dao.upsertHistoryEntry(
+                HistoryEntryEntity(
+                    id          = idProvider(),
+                    queueItemId = queueItemId,
+                    message     = "Attachment added: $trimmedName",
+                    kind        = HistoryKind.ATTACHMENT_ADDED.name,
+                    createdAt   = now
+                )
+            )
+        }.onFailure { e -> runCatching { Log.w(TAG, "Failed to write history entry", e) } }
         return attachmentId
     }
 

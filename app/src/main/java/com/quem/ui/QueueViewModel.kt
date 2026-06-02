@@ -629,7 +629,7 @@ private fun Attachment.toAttachmentUi() = AttachmentUi(
     isDriveFolder = type == AttachmentType.DRIVE_FOLDER,
     uploadState   = when (syncState) {
         SyncState.UPLOAD_FAILED  -> UploadState.FAILED
-        SyncState.PENDING_UPLOAD -> UploadState.IN_PROGRESS  // re-enqueued on next sync attempt
+        SyncState.PENDING_UPLOAD -> UploadState.IN_PROGRESS  // shows spinner; Delete is available if stuck after process restart
         else                     -> UploadState.NONE
     }
 )
